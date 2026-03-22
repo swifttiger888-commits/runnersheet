@@ -1,26 +1,101 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #f4f4f5;
+  --foreground: #18181b;
+  --surface: #ffffff;
+  --surface-elevated: #ffffff;
+  --muted: #71717a;
+  --muted-bg: #e4e4e7;
+  --border: #d4d4d8;
+  --primary: #c41e3a;
+  --primary-hover: #a01830;
+  --primary-foreground: #ffffff;
+  --ring: #c41e3a;
+  --danger: #b91c1c;
+  --danger-bg: #fef2f2;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0c0c0e;
+    --foreground: #fafafa;
+    --surface: #18181b;
+    --surface-elevated: #27272a;
+    --muted: #a1a1aa;
+    --muted-bg: #3f3f46;
+    --border: #3f3f46;
+    --primary: #e11d48;
+    --primary-hover: #f43f5e;
+    --primary-foreground: #ffffff;
+    --ring: #fb7185;
+    --danger: #f87171;
+    --danger-bg: rgba(127, 29, 29, 0.35);
+  }
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-surface: var(--surface);
+  --color-surface-elevated: var(--surface-elevated);
+  --color-muted: var(--muted);
+  --color-muted-bg: var(--muted-bg);
+  --color-border: var(--border);
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-ring: var(--ring);
+  --color-danger: var(--danger);
+  --color-danger-bg: var(--danger-bg);
+  --font-sans: var(--font-sans-ui), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-mono-ui), ui-monospace, monospace;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
   }
 }
 
 body {
-  background: var(--background);
+  background: transparent;
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans-ui), ui-sans-serif, system-ui, sans-serif;
+}
+
+/* Subtle mesh behind main shell (CSS-only) */
+.app-backdrop {
+  background-color: var(--background);
+  background-image:
+    radial-gradient(
+      ellipse 120% 80% at 50% -20%,
+      color-mix(in srgb, var(--primary) 12%, transparent),
+      transparent 55%
+    ),
+    radial-gradient(
+      ellipse 80% 50% at 100% 100%,
+      color-mix(in srgb, var(--muted) 8%, transparent),
+      transparent 45%
+    );
+}
+
+@media (prefers-color-scheme: dark) {
+  .app-backdrop {
+    background-image:
+      radial-gradient(
+        ellipse 120% 80% at 50% -20%,
+        color-mix(in srgb, var(--primary) 18%, transparent),
+        transparent 55%
+      ),
+      radial-gradient(
+        ellipse 80% 50% at 100% 100%,
+        color-mix(in srgb, var(--muted) 10%, transparent),
+        transparent 45%
+      );
+  }
 }
