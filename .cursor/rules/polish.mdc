@@ -1,0 +1,73 @@
+---
+alwaysApply: true
+---
+
+# RunnerSheet UI polish
+
+Design rules for this codebase. Tokens live in [`src/app/globals.css`](src/app/globals.css) (`--primary`, `--surface`, `--border`, etc.). Prefer **semantic Tailwind** mapped to those tokens (`bg-primary`, `border-border`, `text-muted`) over raw hex in components.
+
+## Principles
+
+1. **One strong surface per screen** — Primary actions use solid `primary`; everything else stays quieter (border, muted fill, ghost). Avoid `shadow-sm` on every control; reserve elevation for hierarchy.
+2. **Recessed inputs, elevated cards** — Fields read *in*; cards and floating actions read *out*. Do not give inputs and buttons the same “floating card” treatment.
+3. **Typographic ladder** — Not every heading is `text-2xl font-bold`. Use weight and size steps so page title > section > label > hint.
+4. **Calm motion** — Prefer opacity/brightness or subtle inset on press; avoid obvious `scale` on primary buttons unless deliberately playful. Respect `prefers-reduced-motion` (global CSS already reduces transitions).
+
+---
+
+## Buttons ([`src/components/ui/button.tsx`](src/components/ui/button.tsx))
+
+- **Variants**: `primary` = single strongest CTA per region; `secondary` = supporting (prefer border + subtle bg over heavy shadow); `ghost` = tertiary / toolbar.
+- **Sizes**: When adding `sm` / `lg`, keep touch targets ≥ 44px height on mobile (`min-h-11` baseline is good).
+- **Press / hover**: Use short transitions (`~150–200ms`). Primary: slight **brightness** or **opacity** change; avoid `active:scale-*` unless product explicitly wants it.
+- **Focus**: Keep `focus-visible:ring-*` + offset; never remove focus styles.
+- **Implementation**: Prefer `forwardRef` + `className` merge (`clsx` + `tailwind-merge` if added) so screens can extend without duplicating base styles.
+
+---
+
+## Inputs & labels ([`src/components/ui/input.tsx`](src/components/ui/input.tsx), [`label.tsx`](src/components/ui/label.tsx))
+
+- **Field shape**: Prefer subtle **inset** (e.g. inset shadow or slightly lower contrast bg than page) so fields feel recessed, not a flat sticker.
+- **Focus**: One coherent system — e.g. ring + border transition; avoid competing double outlines (thick border + thick ring).
+- **States**: Support error/disabled visually: `aria-invalid`, `disabled:opacity-*`, optional `data-invalid:` in a wrapper component for red border/ring using `--danger`.
+- **Density**: Registration, mileage, IDs may use `font-mono` for scanability; keep body UI in sans.
+- **Structure**: Prefer a small **field** pattern (label + control + hint/error) over orphan inputs in complex forms.
+
+---
+
+## Layout ([`src/components/app-shell.tsx`](src/components/app-shell.tsx))
+
+- **Shell**: `AppShell` is the main column; use consistent **section spacing** (`gap` or `space-y-*`) — tighter inside cards, looser between sections.
+- **Header**: Optional **hairline** under header (`border-b border-border/…`) when title + actions need separation from scrolling content.
+- **Brand**: Icon tile should not compete with page content — vary radius vs cards if needed; avoid “generic startup” = only bold name + yellow square with no hierarchy.
+- **Landmarks**: Prefer `<main>` where appropriate; keep safe-area padding as already used.
+
+---
+
+## Cards & surfaces
+
+- Use [`card.tsx`](src/components/ui/card.tsx) patterns consistently: one border/shadow level per tier. Don’t stack `shadow-md` on everything.
+
+---
+
+## Accessibility
+
+- Interactive elements: keyboard focus visible, sufficient contrast on `primary` text (`--primary-foreground`).
+- Icons beside text: decorative icons `aria-hidden`; meaningful icons need `aria-label` on the control.
+- Forms: associate `<label htmlFor>` with control `id`.
+
+---
+
+## Anti-patterns (avoid)
+
+- Default **shadow-sm on every** button, input, and card.
+- **Same radius** (`rounded-xl`) on every component with no hierarchy.
+- **Every screen** using the same `text-2xl font-bold` for the main title with no secondary typography.
+- Removing focus rings for aesthetics.
+- Long `className` string concatenation on shared components without merge/ref (becomes unmaintainable).
+
+---
+
+## When touching globals
+
+- New colors: add CSS variables in `:root` / dark, then wire through `@theme inline` — keep **one source of truth** for light/dark.
