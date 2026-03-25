@@ -1,8 +1,9 @@
 import type { UserRole } from "@/types/user";
+import type { UserProfile } from "@/types/user";
 
-/** Dev/demo only — not secret; do not use in production backends. */
+/** Local sample accounts — not secret; do not use in production backends. */
 export const DEMO_ACCOUNT_HINT =
-  "driver@demo.runnersheet + demo1234 · manager@demo.runnersheet + demo1234";
+  "Sample: driver@demo.runnersheet + demo1234 · manager@demo.runnersheet + demo1234";
 
 const PAIRS: Record<
   string,
@@ -10,6 +11,24 @@ const PAIRS: Record<
 > = {
   "driver@demo.runnersheet": { password: "demo1234", role: "driver" },
   "manager@demo.runnersheet": { password: "demo1234", role: "manager" },
+};
+
+export const DEMO_PROFILE: Record<UserRole, UserProfile> = {
+  driver: {
+    name: "Alex Driver",
+    employeeId: "AC-D-1001",
+    homeBranch: "Leeds",
+  },
+  manager: {
+    name: "Sam Manager",
+    employeeId: "AC-M-2001",
+    homeBranch: "Leeds",
+  },
+  "super-admin": {
+    name: "Super Admin",
+    employeeId: "AC-SA-0",
+    homeBranch: "HQ",
+  },
 };
 
 export function validateDemoCredentials(

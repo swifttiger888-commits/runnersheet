@@ -1,4 +1,4 @@
-import { isFirebaseConfigured } from "@/lib/firebase";
+import { isFirebaseConfigured } from "@/lib/firebase-env";
 
 export type AuthProviderMode = "demo" | "firebase";
 
@@ -17,4 +17,4 @@ export function shouldUseFirebaseAuth(): boolean {
 }
 
 /** Firebase keys present (independent of auth mode). */
-export { isFirebaseConfigured } from "@/lib/firebase";
+export { isFirebaseConfigured } from "@/lib/firebase-env";
