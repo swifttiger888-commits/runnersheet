@@ -29,8 +29,29 @@ To learn more about Next.js, take a look at the following resources:
 
 You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
 
-## Deploy on Vercel
+## Deploy on Cloudflare (Workers)
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+This app uses [OpenNext for Cloudflare](https://opennext.js.org/cloudflare) (`@opennextjs/cloudflare`).
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Next.js is pinned to **16.1.x** (not 16.2.x) until OpenNext fixes [Cloudflare Error 1101 / `prefetch-hints.json`](https://github.com/opennextjs/opennextjs-cloudflare/issues/1157) on Workers.
+
+**One-time:** install the [Wrangler CLI](https://developers.cloudflare.com/workers/wrangler/install-and-update/) and run `npx wrangler login`.
+
+**From your machine**
+
+```bash
+npm install
+npm run deploy
+```
+
+`deploy` runs `opennextjs-cloudflare build` then `opennextjs-cloudflare deploy`. Set the same `NEXT_PUBLIC_*` variables you use in `.env.local` in the Cloudflare dashboard (**Workers & Pages → your worker → Settings → Variables**) for production builds, or rely on a CI secret store—`next build` inlines `NEXT_PUBLIC_*` at build time.
+
+**Preview locally (production bundle)**
+
+```bash
+npm run preview
+```
+
+**Custom domain (e.g. runnersheet.win)** attach the domain to the Worker in the Cloudflare dashboard (Workers route or custom domains). Add `runnersheet.win` (and `www` if used) under **Firebase → Authentication → Authorized domains**.
+
+See also: [Next.js on Cloudflare](https://developers.cloudflare.com/workers/frameworks/framework-guides/nextjs/).

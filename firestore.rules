@@ -1,0 +1,202 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function userDocPath() {
+      return /databases/$(database)/documents/users/$(request.auth.uid);
+    }
+
+    function userDocExists() {
+      return signedIn() && exists(userDocPath());
+    }
+
+    function userData() {
+      return get(userDocPath()).data;
+    }
+
+    /** Legacy profiles may omit accessStatus — treat as approved. */
+    function isApprovedUser() {
+      return userDocExists()
+        && (!('accessStatus' in userData()) || userData().accessStatus == 'approved');
+    }
+
+    function isManager() {
+      return isApprovedUser() && userData().role == 'manager';
+    }
+
+    function isSuperAdmin() {
+      return isApprovedUser() && userData().role == 'super-admin';
+    }
+
+    function isDriver() {
+      return isApprovedUser() && userData().role == 'driver';
+    }
+
+    function canApproveAccessRequests() {
+      return isManager() || isSuperAdmin();
+    }
+
+    function ownsJourney(journeyId) {
+      return signedIn()
+        && exists(/databases/$(database)/documents/journeys/$(journeyId))
+        && get(/databases/$(database)/documents/journeys/$(journeyId)).data.userId
+          == request.auth.uid;
+    }
+
+    match /users/{userId} {
+      allow read: if signedIn()
+        && (request.auth.uid == userId || isManager() || isSuperAdmin());
+
+      allow create: if signedIn()
+        && (
+          (
+            request.auth.uid == userId
+            && request.resource.data.accessStatus == 'pending'
+            && request.resource.data.keys().hasOnly([
+              'accessStatus',
+              'name',
+              'employeeId',
+              'homeBranch',
+              'email',
+              'requestedAt',
+            ])
+          )
+          || (
+            (isManager() || isSuperAdmin())
+            && request.resource.data.keys().hasOnly([
+              'accessStatus',
+              'role',
+              'name',
+              'email',
+              'employeeId',
+              'homeBranch',
+              'provisionedByManager',
+              'createdAt',
+            ])
+            && request.resource.data.provisionedByManager == true
+            && request.resource.data.role == 'driver'
+            && request.resource.data.accessStatus == 'approved'
+          )
+          || (
+            request.auth.uid == userId
+            && request.resource.data.keys().hasOnly([
+              'accessStatus',
+              'role',
+              'name',
+              'employeeId',
+              'homeBranch',
+              'email',
+              'linkedFromProvisionId',
+            ])
+            && request.resource.data.accessStatus == 'approved'
+            && request.resource.data.role == 'driver'
+            && request.resource.data.email == request.auth.token.email
+            && exists(/databases/$(database)/documents/users/$(request.resource.data.linkedFromProvisionId))
+            && get(/databases/$(database)/documents/users/$(request.resource.data.linkedFromProvisionId)).data.provisionedByManager == true
+            && get(/databases/$(database)/documents/users/$(request.resource.data.linkedFromProvisionId)).data.email == request.resource.data.email
+          )
+        );
+
+      allow update: if signedIn()
+        && (
+          (
+            request.auth.uid == userId
+            && resource.data.accessStatus == 'pending'
+            && request.resource.data.accessStatus == 'pending'
+          )
+          || (canApproveAccessRequests() && request.auth.uid != userId)
+          || (
+            request.auth.uid == userId
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isInstalled', 'lastInstalledCheck'])
+            && request.resource.data.isInstalled == true
+          )
+        );
+
+      allow delete: if signedIn()
+        && resource.data.provisionedByManager == true
+        && (
+          (isManager() || isSuperAdmin())
+          || (
+            request.auth.token.email != null
+            && request.auth.token.email == resource.data.email
+          )
+        );
+    }
+
+    match /journeys/{journeyId} {
+      allow read: if signedIn()
+        && (resource.data.userId == request.auth.uid || isManager());
+
+      allow create: if signedIn()
+        && isDriver()
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.status == 'active';
+
+      allow update: if signedIn()
+        && resource.data.userId == request.auth.uid
+        && request.resource.data.userId == resource.data.userId;
+    }
+
+    match /branches/{branchId} {
+      allow read: if signedIn();
+
+      allow create: if (isManager() || isSuperAdmin())
+        && request.resource.data.keys().hasOnly(['name', 'postcode'])
+        && request.resource.data.name is string
+        && request.resource.data.postcode is string
+        && request.resource.data.name.size() > 0;
+
+      allow update: if (isManager() || isSuperAdmin())
+        && request.resource.data.keys().hasOnly(['name', 'postcode'])
+        && request.resource.data.name is string
+        && request.resource.data.postcode is string
+        && request.resource.data.name.size() > 0;
+
+      allow delete: if isManager() || isSuperAdmin();
+    }
+
+    match /alerts/{alertId} {
+      allow read: if signedIn() && isManager();
+
+      allow create: if signedIn()
+        && isDriver()
+        && request.resource.data.keys().hasAll([
+          'alertType',
+          'message',
+          'journeyId',
+          'driverEmployeeID',
+          'isResolved',
+          'createdAt',
+        ])
+        && ownsJourney(request.resource.data.journeyId);
+
+      allow update: if signedIn() && isManager();
+    }
+
+    match /vehicles/{plate} {
+      allow read: if isApprovedUser();
+
+      allow create, update: if signedIn()
+        && (isDriver() || isManager() || isSuperAdmin())
+        && request.resource.data.keys().hasOnly([
+          'registrationPlate',
+          'make',
+          'model',
+          'color',
+          'source',
+          'lastVerifiedAt',
+          'createdAt',
+          'updatedAt',
+        ])
+        && request.resource.data.registrationPlate == plate
+        && request.resource.data.make is string
+        && request.resource.data.model is string
+        && request.resource.data.color is string;
+    }
+  }
+}
