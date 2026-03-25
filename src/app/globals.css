@@ -1,37 +1,36 @@
 @import "tailwindcss";
 
+/* Premium quiet luxury: onyx base, obsidian surfaces, Stripe-style accent */
 :root {
-  --background: #f4f4f5;
-  --foreground: #18181b;
-  --surface: #ffffff;
-  --surface-elevated: #ffffff;
-  --muted: #71717a;
-  --muted-bg: #e4e4e7;
-  --border: #d4d4d8;
-  --primary: #c41e3a;
-  --primary-hover: #a01830;
+  --background: #0d0d0f;
+  --foreground: #fafafa;
+  --surface: #161618;
+  --surface-elevated: #1c1c20;
+  --muted: #a1a1aa;
+  --muted-bg: #222226;
+  --border: #2c2c31;
+  --primary: #635bff;
+  --primary-hover: #7b74ff;
   --primary-foreground: #ffffff;
-  --ring: #c41e3a;
-  --danger: #b91c1c;
-  --danger-bg: #fef2f2;
-}
+  --ring: #7c6dff;
+  --danger: #f87171;
+  --danger-bg: rgba(185, 28, 28, 0.22);
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0c0c0e;
-    --foreground: #fafafa;
-    --surface: #18181b;
-    --surface-elevated: #27272a;
-    --muted: #a1a1aa;
-    --muted-bg: #3f3f46;
-    --border: #3f3f46;
-    --primary: #e11d48;
-    --primary-hover: #f43f5e;
-    --primary-foreground: #ffffff;
-    --ring: #fb7185;
-    --danger: #f87171;
-    --danger-bg: rgba(127, 29, 29, 0.35);
-  }
+  /* Elevation (referenced from @theme — keep names distinct to avoid circular var()) */
+  --elev-shadow-card: 0 1px 0 0 rgba(255, 255, 255, 0.055),
+    0 12px 36px -14px rgba(0, 0, 0, 0.55);
+  --elev-shadow-card-quiet: 0 1px 0 0 rgba(255, 255, 255, 0.04);
+  --elev-shadow-control: 0 1px 0 0 rgba(255, 255, 255, 0.12);
+  --elev-shadow-inset-field: inset 0 1px 2px rgba(0, 0, 0, 0.42);
+  /* Subtle top highlight on small elevated tiles (brand icon, chips) */
+  --elev-shadow-inset-highlight: inset 0 1px 0 0 rgba(255, 255, 255, 0.07);
+
+  /* Layering (static UI: z-0; reserve higher tiers for overlays/dropdowns) */
+  --elev-z-base: 0;
+  --elev-z-raised: 1;
+  --elev-z-sticky: 10;
+  --elev-z-dropdown: 40;
+  --elev-z-overlay: 100;
 }
 
 @theme inline {
@@ -50,6 +49,20 @@
   --color-danger-bg: var(--danger-bg);
   --font-sans: var(--font-sans-ui), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-mono-ui), ui-monospace, monospace;
+  --shadow-card: var(--elev-shadow-card);
+  --shadow-card-quiet: var(--elev-shadow-card-quiet);
+  --shadow-control: var(--elev-shadow-control);
+  --shadow-inset-field: var(--elev-shadow-inset-field);
+  --shadow-inset-highlight: var(--elev-shadow-inset-highlight);
+  --z-base: var(--elev-z-base);
+  --z-raised: var(--elev-z-raised);
+  --z-sticky: var(--elev-z-sticky);
+  --z-dropdown: var(--elev-z-dropdown);
+  --z-overlay: var(--elev-z-overlay);
+}
+
+html {
+  color-scheme: dark;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -68,34 +81,18 @@ body {
   font-family: var(--font-sans-ui), ui-sans-serif, system-ui, sans-serif;
 }
 
-/* Subtle mesh behind main shell (CSS-only) */
+/* Quiet ambient wash — low primary mix so it stays subtle */
 .app-backdrop {
   background-color: var(--background);
   background-image:
     radial-gradient(
-      ellipse 120% 80% at 50% -20%,
-      color-mix(in srgb, var(--primary) 12%, transparent),
-      transparent 55%
+      ellipse 120% 80% at 50% -25%,
+      color-mix(in srgb, var(--primary) 7%, transparent),
+      transparent 58%
     ),
     radial-gradient(
-      ellipse 80% 50% at 100% 100%,
-      color-mix(in srgb, var(--muted) 8%, transparent),
-      transparent 45%
+      ellipse 90% 55% at 100% 100%,
+      color-mix(in srgb, var(--muted) 5%, transparent),
+      transparent 48%
     );
-}
-
-@media (prefers-color-scheme: dark) {
-  .app-backdrop {
-    background-image:
-      radial-gradient(
-        ellipse 120% 80% at 50% -20%,
-        color-mix(in srgb, var(--primary) 18%, transparent),
-        transparent 55%
-      ),
-      radial-gradient(
-        ellipse 80% 50% at 100% 100%,
-        color-mix(in srgb, var(--muted) 10%, transparent),
-        transparent 45%
-      );
-  }
 }
