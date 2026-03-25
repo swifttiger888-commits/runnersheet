@@ -1,6 +1,7 @@
-import { initializeApp, getApps, type FirebaseApp } from "firebase/app";
-import { getAuth, type Auth } from "firebase/auth";
-import { getFirestore, type Firestore } from "firebase/firestore";
+import { isFirebaseConfigured } from "@/lib/firebase-env";
+import type { FirebaseApp } from "firebase/app";
+import type { Auth } from "firebase/auth";
+import type { Firestore } from "firebase/firestore";
 
 const config = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -11,26 +12,57 @@ const config = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
 };
 
-export function isFirebaseConfigured(): boolean {
-  return Boolean(
-    config.apiKey &&
-      config.authDomain &&
-      config.projectId &&
-      config.appId,
-  );
-}
-
-export function getFirebaseClients(): {
+export type FirebaseClients = {
   app: FirebaseApp;
   auth: Auth;
   db: Firestore;
-} | null {
+};
+
+let cached: FirebaseClients | null | undefined;
+let persistenceInitPromise: Promise<void> | null = null;
+
+/**
+ * Load Firebase SDK modules (dynamic import only — required for Cloudflare Workers,
+ * which forbid `new Function` / protobuf codegen in the server bundle).
+ */
+export async function ensureFirebaseClients(): Promise<FirebaseClients | null> {
   if (typeof window === "undefined") return null;
   if (!isFirebaseConfigured()) return null;
+  if (cached !== undefined) return cached;
+
+  const [
+    { initializeApp, getApps },
+    { getAuth },
+    { enableMultiTabIndexedDbPersistence, getFirestore },
+  ] =
+    await Promise.all([
+      import("firebase/app"),
+      import("firebase/auth"),
+      import("firebase/firestore"),
+    ]);
+
   const app = getApps().length ? getApps()[0]! : initializeApp(config);
-  return {
+  cached = {
     app,
     auth: getAuth(app),
     db: getFirestore(app),
   };
+
+  if (!persistenceInitPromise) {
+    persistenceInitPromise = enableMultiTabIndexedDbPersistence(cached.db).catch(
+      () => {
+        /* No-op: persistence may be unavailable (private mode, unsupported browser, etc). */
+      },
+    );
+  }
+  await persistenceInitPromise;
+  return cached;
 }
+
+/** Populated after the first successful `ensureFirebaseClients()` on the client. */
+export function getFirebaseClients(): FirebaseClients | null {
+  if (typeof window === "undefined") return null;
+  return cached ?? null;
+}
+
+export { isFirebaseConfigured } from "@/lib/firebase-env";
