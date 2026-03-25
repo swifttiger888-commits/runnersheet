@@ -4,12 +4,13 @@ export default function manifest(): MetadataRoute.Manifest {
   return {
     name: "RunnerSheet",
     short_name: "RunnerSheet",
-    description: "AC Vehicle Tracker — journeys and branch reports",
+    description:
+      "RunnerSheet — free journeys and reports for Arnold Clark drivers and managers. Independent app.",
     start_url: "/",
     display: "standalone",
     orientation: "portrait-primary",
-    background_color: "#f4f4f5",
-    theme_color: "#c41e3a",
+    background_color: "#0d0d0f",
+    theme_color: "#635bff",
     icons: [
       {
         src: "/icons/icon-192.png",
