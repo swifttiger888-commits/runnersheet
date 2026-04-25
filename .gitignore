@@ -45,3 +45,6 @@ next-env.d.ts
 .open-next
 .dev.vars
 .wrangler/
+
+# Cloudflare deploy token (local secret, never commit)
+cloudflare-token.txt

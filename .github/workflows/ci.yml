@@ -2,7 +2,7 @@ name: CI / Deploy
 
 on:
   push:
-    branches: [main, safe-recovery-2026-04-25]
+    branches: [main]
   pull_request:
     branches: [main]
 
