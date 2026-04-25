@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import {
   AlertTriangle,
   BarChart3,
+  Briefcase,
   Building2,
   Car,
   CirclePlus,
@@ -58,6 +59,7 @@ const quick = [
   { href: "/manager/nip-lookup", label: "NIP lookup", icon: Search },
   { href: "/manager/reviews", label: "Pending reviews", icon: ClipboardList },
   { href: "/manager/alerts", label: "Alerts", icon: AlertTriangle },
+  { href: "/manager/managers", label: "Managers", icon: Briefcase },
   {
     href: "/manager/drivers",
     label: "Drivers & app installs",
