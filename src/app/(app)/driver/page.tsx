@@ -863,7 +863,7 @@ export default function DriverDashboardPage() {
         </Card>
       ) : null}
 
-      <Card>
+      <Card id="driver-report-card">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Download className="h-5 w-5 text-primary" aria-hidden />
@@ -920,6 +920,21 @@ export default function DriverDashboardPage() {
           </div>
         </div>
       </Card>
+
+      <Button
+        type="button"
+        className={`fixed right-4 z-40 gap-2 shadow-lg ${
+          active ? "bottom-24" : "bottom-6"
+        }`}
+        onClick={() => {
+          const el = document.getElementById("driver-report-card");
+          if (!el) return;
+          el.scrollIntoView({ behavior: "smooth", block: "start" });
+        }}
+      >
+        <Download className="h-4 w-4" aria-hidden />
+        Report
+      </Button>
 
       {completed.length > 0 ? (
         <div className="space-y-4">

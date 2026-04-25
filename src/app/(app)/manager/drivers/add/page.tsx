@@ -13,6 +13,8 @@ import { ensureFirebaseClients } from "@/lib/firebase";
 import { isFirebaseConfigured } from "@/lib/firebase-env";
 import { useAuth } from "@/context/auth-context";
 
+type ProvisionRole = "driver" | "manager";
+
 export default function ManagerAddDriverPage() {
   const router = useRouter();
   const { usesFirebaseAuth } = useAuth();
@@ -21,6 +23,7 @@ export default function ManagerAddDriverPage() {
   const [email, setEmail] = useState("");
   const [employeeId, setEmployeeId] = useState("");
   const [homeBranch, setHomeBranch] = useState("");
+  const [role, setRole] = useState<ProvisionRole>("driver");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const canSubmit =
@@ -70,7 +73,23 @@ export default function ManagerAddDriverPage() {
         provisionedByManager: true,
         createdAt: serverTimestamp(),
       });
-      router.push("/manager/drivers");
+
+      // Firestore create rules only permit manager-provisioned "driver" creates.
+      // For manager onboarding, promote immediately after create.
+      if (role === "manager") {
+        const { doc, getDocs, updateDoc } = await import("firebase/firestore");
+        const created = await getDocs(
+          query(collection(clients.db, "users"), where("email", "==", emailTrim)),
+        );
+        const createdDoc = created.docs[0];
+        if (createdDoc) {
+          await updateDoc(doc(clients.db, "users", createdDoc.id), {
+            role: "manager",
+          });
+        }
+      }
+
+      router.push("/manager");
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "Could not create driver profile.",
@@ -81,10 +100,10 @@ export default function ManagerAddDriverPage() {
   }
 
   return (
-    <ManagerPageShell title="Add driver">
+    <ManagerPageShell title="Add team member">
       <p className="text-sm text-muted">
-        Creates an approved driver profile with a new Firestore document ID. When
-        they first sign in with Google (or email) using the{" "}
+        Creates an approved profile with a new Firestore document ID. When they
+        first sign in with Google (or email) using the{" "}
         <strong className="font-medium text-foreground">same email</strong>, their
         account links to RunnerSheet automatically.
       </p>
@@ -105,13 +124,26 @@ export default function ManagerAddDriverPage() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <UserPlus className="h-5 w-5 text-primary" aria-hidden />
-            Driver details
+            Team member details
           </CardTitle>
         </CardHeader>
         <form
           onSubmit={(e) => void onSubmit(e)}
           className="flex flex-col gap-4 border-t border-border px-5 pb-5 pt-3"
         >
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="role">Role</Label>
+            <select
+              id="role"
+              className="min-h-11 rounded-xl border border-border bg-background px-3 text-foreground shadow-inset-field"
+              value={role}
+              onChange={(e) => setRole(e.target.value as ProvisionRole)}
+              disabled={busy}
+            >
+              <option value="driver">Driver</option>
+              <option value="manager">Manager</option>
+            </select>
+          </div>
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="full-name">Full name</Label>
             <Input
@@ -187,7 +219,11 @@ export default function ManagerAddDriverPage() {
             ) : (
               <UserPlus className="h-4 w-4" aria-hidden />
             )}
-            Add driver
+            {role === "manager" ? (
+              "Add manager"
+            ) : (
+              "Add driver"
+            )}
           </Button>
         </form>
       </Card>

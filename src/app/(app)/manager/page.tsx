@@ -63,7 +63,7 @@ const quick = [
     label: "Drivers & app installs",
     icon: Users,
   },
-  { href: "/manager/drivers/add", label: "Add new driver", icon: CirclePlus },
+  { href: "/manager/drivers/add", label: "Add team member", icon: CirclePlus },
   { href: "/manager/reports", label: "Reports (PDF)", icon: FileText },
 ] as const;
 
