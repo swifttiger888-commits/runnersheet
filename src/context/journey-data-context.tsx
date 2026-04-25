@@ -64,7 +64,7 @@ type JourneyDataContextValue = {
   endJourney: (
     journeyId: string,
     endingMileage?: number,
-    options?: { cancelled?: boolean },
+    options?: { cancelled?: boolean; destinationPostcode?: string | null },
   ) => Promise<void>;
   resolveAlert: (alertId: string) => Promise<void>;
 };
@@ -362,7 +362,7 @@ export function JourneyDataProvider({ children }: { children: React.ReactNode })
     async (
       journeyId: string,
       endingMileage?: number,
-      options?: { cancelled?: boolean },
+      options?: { cancelled?: boolean; destinationPostcode?: string | null },
     ) => {
       if (!profile) throw new Error("Profile not loaded.");
       const list = journeysRef.current;
@@ -376,6 +376,10 @@ export function JourneyDataProvider({ children }: { children: React.ReactNode })
       const miles = Math.max(0, resolvedEndingMileage - j.startingMileage);
       const seconds = Math.max(0, (end.getTime() - j.startTime.getTime()) / 1000);
       const wasCancelled = Boolean(options?.cancelled);
+      const resolvedDestination =
+        typeof options?.destinationPostcode === "string"
+          ? formatUkPostcode(options.destinationPostcode.trim()) || null
+          : j.destinationPostcode ?? null;
 
       if (canUseFirestore) {
         const clients = await ensureFirebaseClients();
@@ -389,6 +393,7 @@ export function JourneyDataProvider({ children }: { children: React.ReactNode })
         } = await import("firebase/firestore");
         await updateDoc(doc(clients.db, "journeys", journeyId), {
           endingMileage: resolvedEndingMileage,
+          destinationPostcode: resolvedDestination,
           endTime: serverTimestamp(),
           status: "completed",
           wasCancelled,
@@ -398,6 +403,7 @@ export function JourneyDataProvider({ children }: { children: React.ReactNode })
         const completed: JourneyRecord = {
           ...j,
           endingMileage: resolvedEndingMileage,
+          destinationPostcode: resolvedDestination,
           endTime: end,
           status: "completed",
           wasCancelled,
@@ -430,6 +436,7 @@ export function JourneyDataProvider({ children }: { children: React.ReactNode })
       const completed: JourneyRecord = {
         ...prev[idx],
         endingMileage: resolvedEndingMileage,
+        destinationPostcode: resolvedDestination,
         endTime: end,
         status: "completed",
         wasCancelled,

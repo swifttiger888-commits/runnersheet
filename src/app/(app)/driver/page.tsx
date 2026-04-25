@@ -8,6 +8,7 @@ import {
   Car,
   CheckCircle2,
   Clock3,
+  Download,
   History,
   Home,
   Loader2,
@@ -42,6 +43,7 @@ import { trackGa4Event } from "@/lib/analytics";
 import { journeyDateLabel } from "@/lib/date-labels";
 import { ensureFirebaseClients } from "@/lib/firebase";
 import { gpsCoordsStartLabel } from "@/lib/gps-start-label";
+import { buildDriverJourneyPdf } from "@/lib/pdf-report";
 import {
   formatUkPostcode,
   formatUkVehicleRegistration,
@@ -49,6 +51,20 @@ import {
 } from "@/lib/uk-format";
 import type { JourneyRecord } from "@/types/journey";
 type VehicleLookupState = "idle" | "loading" | "found" | "not_found" | "error";
+
+function formatDurationLabel(durationSeconds: number | null | undefined) {
+  if (durationSeconds == null) return "";
+  const totalMinutes = Math.max(0, Math.round(durationSeconds / 60));
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  if (hours <= 0) return `${minutes} min`;
+  if (minutes === 0) return `${hours}h`;
+  return `${hours}h ${minutes}m`;
+}
+
+// Typical runs are local; flag likely missed end-times quickly.
+const LATE_END_THRESHOLD_SECONDS = 2 * 60 * 60;
+const VERY_LATE_END_THRESHOLD_SECONDS = 8 * 60 * 60;
 
 export default function DriverDashboardPage() {
   const router = useRouter();
@@ -65,7 +81,6 @@ export default function DriverDashboardPage() {
   } = useJourneyData();
 
   const [vehicleRegistration, setVehicleRegistration] = useState("");
-  const [destinationPostcode, setDestinationPostcode] = useState("");
   const [busy, setBusy] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [vehicleLookupState, setVehicleLookupState] =
@@ -79,6 +94,14 @@ export default function DriverDashboardPage() {
   const [cacheOnlyPlateId, setCacheOnlyPlateId] = useState<string | null>(null);
   const [isOnline, setIsOnline] = useState(true);
   const [showSyncedNotice, setShowSyncedNotice] = useState(false);
+  const [reportBusy, setReportBusy] = useState(false);
+  const [reportBranch, setReportBranch] = useState<WorkingBranch>("Leeds");
+  const [reportFromDate, setReportFromDate] = useState(() =>
+    new Date().toISOString().slice(0, 10),
+  );
+  const [reportToDate, setReportToDate] = useState(() =>
+    new Date().toISOString().slice(0, 10),
+  );
   const hadPendingWritesRef = useRef(false);
 
   useEffect(() => {
@@ -126,8 +149,7 @@ export default function DriverDashboardPage() {
     return workingBranch;
   }, [active, workingBranch]);
 
-  const destinationForEta =
-    active?.destinationPostcode?.trim() || destinationPostcode.trim() || "";
+  const destinationForEta = active?.destinationPostcode?.trim() || "";
 
   const branchPostcode = useMemo(
     () => getPostcodeByBranchName(branchForEta),
@@ -150,6 +172,12 @@ export default function DriverDashboardPage() {
     gpsPostcodeLoading,
   } = tripEta;
 
+  useEffect(() => {
+    if (active) return;
+    if (gpsStatus !== "idle") return;
+    requestLocation();
+  }, [active, gpsStatus, requestLocation]);
+
   const focusEndJourneySection = useCallback(() => {
     const card = document.getElementById("active-journey-card");
     card?.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -163,6 +191,10 @@ export default function DriverDashboardPage() {
     [journeys],
   );
 
+  useEffect(() => {
+    setReportBranch(workingBranch);
+  }, [workingBranch]);
+
   const groupedHistory = useMemo(() => {
     const map = new Map<string, JourneyRecord[]>();
     for (const j of completed) {
@@ -173,6 +205,15 @@ export default function DriverDashboardPage() {
     }
     return map;
   }, [completed]);
+
+  const reportBranches = useMemo(() => {
+    const set = new Set<WorkingBranch>();
+    for (const j of completed) {
+      if (j.homeBranch) set.add(j.homeBranch as WorkingBranch);
+    }
+    if (set.size === 0) set.add(workingBranch);
+    return Array.from(set);
+  }, [completed, workingBranch]);
 
   const quickTapPlates = useMemo(() => {
     const seen = new Set<string>();
@@ -383,11 +424,14 @@ export default function DriverDashboardPage() {
       const gpsOriginLabel = gpsNearestPostcode
         ? formatUkPostcode(gpsNearestPostcode)
         : gpsCoordsStartLabel(gpsCoords) ?? "GPS (location only)";
+      const gpsDestination = gpsNearestPostcode
+        ? formatUkPostcode(gpsNearestPostcode)
+        : "";
       await startJourney({
         journeyType: "Delivery",
         vehicleRegistration,
         startingMileage: 0,
-        destinationPostcode,
+        destinationPostcode: gpsDestination,
         homeBranch: workingBranch,
         startOriginType: usingGpsOrigin ? "gps" : "branch",
         startOriginLabel: usingGpsOrigin ? gpsOriginLabel : workingBranch,
@@ -398,11 +442,37 @@ export default function DriverDashboardPage() {
         home_branch: workingBranch,
       });
       setVehicleRegistration("");
-      setDestinationPostcode("");
     } catch (err) {
       setFormError(err instanceof Error ? err.message : "Couldn't start job right now.");
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function getCurrentGpsPostcode() {
+    if (typeof window === "undefined" || !("geolocation" in navigator)) return null;
+    try {
+      const position = await new Promise<GeolocationPosition>((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(resolve, reject, {
+          enableHighAccuracy: true,
+          timeout: 9000,
+          maximumAge: 30000,
+        });
+      });
+      const lat = position.coords.latitude;
+      const lng = position.coords.longitude;
+      const res = await fetch(
+        `/api/postcodes/nearest?lat=${encodeURIComponent(String(lat))}&lon=${encodeURIComponent(String(lng))}`,
+        { cache: "no-store" },
+      );
+      if (!res.ok) return null;
+      const data = (await res.json().catch(() => ({}))) as {
+        postcode?: string | null;
+      };
+      if (!data.postcode) return null;
+      return formatUkPostcode(data.postcode);
+    } catch {
+      return null;
     }
   }
 
@@ -411,7 +481,8 @@ export default function DriverDashboardPage() {
     setFormError(null);
     setBusy(true);
     try {
-      await endJourney(active.id);
+      const endPostcode = await getCurrentGpsPostcode();
+      await endJourney(active.id, undefined, { destinationPostcode: endPostcode });
     } catch (err) {
       setFormError(err instanceof Error ? err.message : "Could not end job.");
     } finally {
@@ -439,6 +510,39 @@ export default function DriverDashboardPage() {
       setFormError(err instanceof Error ? err.message : "Could not cancel route.");
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function handleDownloadMyReport() {
+    if (!profile) return;
+    const fromDate = new Date(`${reportFromDate}T00:00:00`);
+    const toDate = new Date(`${reportToDate}T23:59:59`);
+    if (fromDate > toDate) {
+      setFormError("Report date range is invalid. Set From date before To date.");
+      return;
+    }
+    setFormError(null);
+    setReportBusy(true);
+    try {
+      const bytes = await buildDriverJourneyPdf({
+        branch: reportBranch,
+        driverName: profile.name,
+        fromDate,
+        toDate,
+        journeys: completed,
+      });
+      const blob = new Blob([new Uint8Array(bytes)], {
+        type: "application/pdf",
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      const safeName = profile.name.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+      a.href = url;
+      a.download = `runnersheet-${safeName}-${reportBranch}-${reportFromDate}-to-${reportToDate}.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } finally {
+      setReportBusy(false);
     }
   }
 
@@ -559,8 +663,9 @@ export default function DriverDashboardPage() {
             {active.destinationPostcode ? (
               <OpenInMaps destination={active.destinationPostcode} />
             ) : (
-              <p className="text-xs text-muted">
-                Add a destination postcode next time to get one-tap navigation in Maps.
+              <p className="rounded-xl border border-border bg-surface px-3 py-2 text-xs text-muted">
+                GPS destination will be captured when you tap{" "}
+                <span className="font-semibold text-foreground">End job</span>.
               </p>
             )}
             {formError ? (
@@ -601,10 +706,10 @@ export default function DriverDashboardPage() {
               Start job
             </CardTitle>
             <p className="text-sm text-muted">
-              Enter the vehicle and destination postcode to start the job.
+              Enter the vehicle and start the job; start/end locations are captured automatically from GPS.
             </p>
             <p className="text-xs text-muted">
-              Number plates and postcodes are formatted automatically.
+              Number plates are formatted automatically.
             </p>
           </CardHeader>
           <form
@@ -672,22 +777,12 @@ export default function DriverDashboardPage() {
               <div className="flex flex-wrap gap-2">
                 <Button
                   type="button"
-                  variant={gpsStatus === "granted" ? "secondary" : "primary"}
-                  className="min-h-11 flex-1 px-3 text-xs sm:min-w-40 sm:flex-none"
-                  onClick={clearLocation}
-                >
-                  Branch ({workingBranch})
-                </Button>
-                <Button
-                  type="button"
-                  variant={gpsStatus === "granted" ? "primary" : "secondary"}
-                  className="min-h-11 flex-1 px-3 text-xs sm:min-w-40 sm:flex-none"
+                  variant="secondary"
+                  className="min-h-11 px-3 text-xs"
                   onClick={requestLocation}
                   disabled={gpsStatus === "loading"}
                 >
-                  {gpsStatus === "loading"
-                    ? "Finding my location…"
-                    : "My location"}
+                  {gpsStatus === "loading" ? "Finding GPS…" : "Refresh GPS"}
                 </Button>
               </div>
               <p className="text-xs text-muted">
@@ -727,26 +822,20 @@ export default function DriverDashboardPage() {
                     </>
                   )
                 ) : (
-                  workingBranch
+                  <>
+                    <span>{workingBranch}</span>
+                    <span className="text-muted">
+                      {" "}
+                      (GPS unavailable, using branch fallback)
+                    </span>
+                  </>
                 )}
               </p>
             </div>
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="dest">To postcode</Label>
-              <Input
-                autoCapitalize="characters"
-                autoCorrect="off"
-                spellCheck={false}
-                id="dest"
-                inputMode="text"
-                onChange={(e) =>
-                  setDestinationPostcode(formatUkPostcode(e.target.value))
-                }
-                placeholder="LS1 4DY"
-                value={destinationPostcode}
-              />
-              <TripEtaPanel eta={tripEta} showLocationControls={false} />
-            </div>
+            <p className="rounded-xl border border-border bg-surface px-3 py-2 text-xs text-muted">
+              Destination is captured automatically from GPS when you tap{" "}
+              <span className="font-semibold text-foreground">End job</span>.
+            </p>
             {formError ? (
               <p className="text-sm text-danger" role="alert">
                 {formError}
@@ -786,6 +875,38 @@ export default function DriverDashboardPage() {
                 {rows.map((j) => (
                   <li key={j.id}>
                     <Card className="p-4 shadow-card-quiet!">
+                      {(() => {
+                        const startLabel = j.startTime.toLocaleString("en-GB", {
+                          weekday: "short",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        });
+                        const sameDayAsStart =
+                          j.endTime != null &&
+                          j.endTime.toDateString() === j.startTime.toDateString();
+                        const endLabel = j.endTime
+                          ? sameDayAsStart
+                            ? j.endTime.toLocaleTimeString("en-GB", {
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              })
+                            : j.endTime.toLocaleString("en-GB", {
+                                weekday: "short",
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              })
+                          : "In progress";
+                        const durationLabel = formatDurationLabel(j.durationSeconds);
+                        const isLateEnded =
+                          !j.wasCancelled &&
+                          j.durationSeconds != null &&
+                          j.durationSeconds >= LATE_END_THRESHOLD_SECONDS;
+                        const isVeryLateEnded =
+                          !j.wasCancelled &&
+                          j.durationSeconds != null &&
+                          j.durationSeconds >= VERY_LATE_END_THRESHOLD_SECONDS;
+                        return (
+                          <>
                       <p className="flex items-center gap-2 font-semibold text-foreground">
                         <span>
                           {j.vehicleRegistration} ·{" "}
@@ -795,26 +916,23 @@ export default function DriverDashboardPage() {
                             "Complete"
                           )}
                         </span>
+                        {isLateEnded ? (
+                          <span className="rounded-full border border-[#8f7a3a]/40 bg-[#8f7a3a]/15 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-[#e9d89f]">
+                            {isVeryLateEnded ? "Ended very late" : "Ended late"}
+                          </span>
+                        ) : null}
                       </p>
                       <p className="text-sm text-muted">
-                        {j.startTime.toLocaleString("en-GB", {
-                          weekday: "short",
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}
-                        {" - "}
-                        {j.endTime?.toLocaleTimeString("en-GB", {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        }) ?? "In progress"}
-                        {j.durationSeconds != null
-                          ? ` · ${Math.round(j.durationSeconds / 60)} min`
-                          : ""}
+                        {startLabel} - {endLabel}
+                        {durationLabel ? ` · ${durationLabel}` : ""}
                       </p>
                       <p className="text-sm text-muted">
                         From {j.startOriginLabel ?? j.homeBranch} · To{" "}
                         {j.destinationPostcode ?? "Not set"}
                       </p>
+                          </>
+                        );
+                      })()}
                     </Card>
                   </li>
                 ))}
@@ -823,6 +941,64 @@ export default function DriverDashboardPage() {
           ))}
         </div>
       ) : null}
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Download className="h-5 w-5 text-primary" aria-hidden />
+            My printable report (PDF)
+          </CardTitle>
+          <p className="text-sm text-muted">
+            Export your own journeys for hard-copy records.
+          </p>
+        </CardHeader>
+        <div className="grid gap-3 border-t border-border px-5 pb-5 pt-3 sm:grid-cols-2">
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="report-branch">Branch</Label>
+            <select
+              id="report-branch"
+              className="min-h-11 rounded-xl border border-border bg-background px-3 text-foreground shadow-inset-field"
+              value={reportBranch}
+              onChange={(e) => setReportBranch(e.target.value as WorkingBranch)}
+            >
+              {reportBranches.map((b) => (
+                <option key={b} value={b}>
+                  {b}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="report-from">From date</Label>
+            <Input
+              id="report-from"
+              type="date"
+              value={reportFromDate}
+              onChange={(e) => setReportFromDate(e.target.value)}
+            />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="report-to">To date</Label>
+            <Input
+              id="report-to"
+              type="date"
+              value={reportToDate}
+              onChange={(e) => setReportToDate(e.target.value)}
+            />
+          </div>
+          <div className="flex items-end">
+            <Button
+              type="button"
+              className="w-full gap-2"
+              onClick={() => void handleDownloadMyReport()}
+              disabled={reportBusy}
+            >
+              <Download className="h-4 w-4" aria-hidden />
+              {reportBusy ? "Generating PDF..." : "Download my report"}
+            </Button>
+          </div>
+        </div>
+      </Card>
 
       {completed.length === 0 && !active ? (
         <Card className="border-dashed py-8 text-center text-sm text-muted">
