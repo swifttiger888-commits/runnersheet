@@ -17,6 +17,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/context/auth-context";
 import { useJourneyData } from "@/context/journey-data-context";
+import { getAuthHeader } from "@/lib/client-auth";
 import { ensureFirebaseClients } from "@/lib/firebase";
 import { normalizeJourneyRecord } from "@/lib/normalize-records";
 import type { JourneyRecord } from "@/types/journey";
@@ -292,9 +293,10 @@ export default function ManagerAllJourneysPage() {
         setAiError(null);
         try {
           const localMatches = redactSensitiveTerms(text);
+          const authHeader = await getAuthHeader();
           const res = await fetch("/api/search/ai", {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: { "Content-Type": "application/json", ...authHeader },
             body: JSON.stringify({
               text: localMatches.redactedText,
             }),
@@ -526,9 +528,10 @@ export default function ManagerAllJourneysPage() {
                 void (async () => {
                   try {
                     const localMatches = redactSensitiveTerms(t);
+                    const authHeader = await getAuthHeader();
                     const res = await fetch("/api/search/ai", {
                       method: "POST",
-                      headers: { "Content-Type": "application/json" },
+                      headers: { "Content-Type": "application/json", ...authHeader },
                       body: JSON.stringify({
                         text: localMatches.redactedText,
                       }),

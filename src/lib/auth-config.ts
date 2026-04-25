@@ -7,9 +7,7 @@ export type AuthProviderMode = "demo" | "firebase";
  * `NEXT_PUBLIC_AUTH_PROVIDER=firebase` — Firebase Auth + Firestore `users/{uid}.role`.
  */
 export function getAuthProviderMode(): AuthProviderMode {
-  const v = process.env.NEXT_PUBLIC_AUTH_PROVIDER?.toLowerCase();
-  if (v === "firebase") return "firebase";
-  return "demo";
+  return "firebase";
 }
 
 export function shouldUseFirebaseAuth(): boolean {

@@ -1,8 +1,11 @@
 import { NextResponse } from "next/server";
+import { requireAuthedUser } from "@/lib/api-auth";
 import {
   formatUkVehicleRegistration,
   sanitizeAlphanumericUpper,
 } from "@/lib/uk-format";
+
+export const runtime = "nodejs";
 
 type DvlaVehicleResponse = {
   make?: string;
@@ -19,6 +22,9 @@ type DvlaVehicleResponse = {
 };
 
 export async function GET(req: Request) {
+  const authResult = await requireAuthedUser(req);
+  if (authResult instanceof NextResponse) return authResult;
+
   const rawReg = new URL(req.url).searchParams.get("registration") ?? "";
   const registration = formatUkVehicleRegistration(rawReg);
   const registrationNumber = sanitizeAlphanumericUpper(registration);

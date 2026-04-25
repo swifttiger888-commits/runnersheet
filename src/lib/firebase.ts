@@ -20,6 +20,7 @@ export type FirebaseClients = {
 
 let cached: FirebaseClients | null | undefined;
 let persistenceInitPromise: Promise<void> | null = null;
+let authPersistenceInitPromise: Promise<void> | null = null;
 
 /**
  * Load Firebase SDK modules (dynamic import only — required for Cloudflare Workers,
@@ -32,7 +33,13 @@ export async function ensureFirebaseClients(): Promise<FirebaseClients | null> {
 
   const [
     { initializeApp, getApps },
-    { getAuth },
+    {
+      browserLocalPersistence,
+      getAuth,
+      indexedDBLocalPersistence,
+      inMemoryPersistence,
+      setPersistence,
+    },
     { enableMultiTabIndexedDbPersistence, getFirestore },
   ] =
     await Promise.all([
@@ -47,6 +54,21 @@ export async function ensureFirebaseClients(): Promise<FirebaseClients | null> {
     auth: getAuth(app),
     db: getFirestore(app),
   };
+  const authClient = cached.auth;
+
+  if (!authPersistenceInitPromise) {
+    // Keep users signed in across browser restarts where possible.
+    authPersistenceInitPromise = setPersistence(
+      authClient,
+      indexedDBLocalPersistence,
+    )
+      .catch(() => setPersistence(authClient, browserLocalPersistence))
+      .catch(() => setPersistence(authClient, inMemoryPersistence))
+      .catch(() => {
+        /* No-op: auth will still work even if explicit persistence cannot be set. */
+      });
+  }
+  await authPersistenceInitPromise;
 
   if (!persistenceInitPromise) {
     persistenceInitPromise = enableMultiTabIndexedDbPersistence(cached.db).catch(

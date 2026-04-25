@@ -4,8 +4,6 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { FormEvent, Suspense, useEffect, useState } from "react";
 import {
-  Briefcase,
-  Car,
   Home,
   Info,
   KeyRound,
@@ -24,8 +22,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/context/auth-context";
 import { useBranches } from "@/context/branches-context";
-import { DEMO_ACCOUNT_HINT } from "@/config/demo-auth";
-import type { UserRole } from "@/types/user";
 
 const branchSelectClassName =
   "min-h-11 w-full cursor-pointer rounded-xl border border-border/90 bg-background px-3.5 py-2.5 text-foreground shadow-inset-field outline-none transition-[box-shadow,border-color] duration-200 focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/35 disabled:cursor-not-allowed disabled:opacity-60";
@@ -50,10 +46,8 @@ function LoginPageContent() {
     requestPasswordReset,
     signInWithOAuth,
     signOutUser,
-    devSignIn,
     error,
     clearError,
-    showDemoShortcuts,
     submitAccessRequest,
   } = useAuth();
   const [email, setEmail] = useState("");
@@ -140,12 +134,6 @@ function LoginPageContent() {
     setOauthBusy(false);
   }
 
-  async function goDemo(r: UserRole) {
-    clearError();
-    await devSignIn(r);
-    router.push(r === "manager" ? "/manager" : "/driver");
-  }
-
   if (!ready) {
     return (
       <AppShell showBrand>
@@ -157,7 +145,6 @@ function LoginPageContent() {
   const showFirebaseForm = provider === "firebase" && firebaseConfigured;
   const showFirebaseMisconfigured =
     provider === "firebase" && !firebaseConfigured;
-  const showDemoForm = provider === "demo";
   /** Hide Google/email when already signed in (access request / pending / etc.). */
   const showFirebaseSignInForm = showFirebaseForm && !user;
 
@@ -380,54 +367,6 @@ function LoginPageContent() {
         </Card>
       ) : null}
 
-      {showDemoForm ? (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <KeyRound className="h-4 w-4 text-primary" aria-hidden />
-              Email sign-in
-            </CardTitle>
-            <p className="mt-1 text-sm text-muted">{DEMO_ACCOUNT_HINT}</p>
-          </CardHeader>
-          <form onSubmit={onSubmit} className="flex flex-col gap-4">
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                autoComplete="email"
-                id="email"
-                inputMode="email"
-                name="email"
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="driver@demo.runnersheet"
-                type="email"
-                value={email}
-              />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="password">Password</Label>
-              <Input
-                autoComplete="current-password"
-                id="password"
-                name="password"
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
-                type="password"
-                value={password}
-              />
-            </div>
-            {error ? (
-              <p className="text-sm font-medium text-danger" role="alert">
-                {error}
-              </p>
-            ) : null}
-            <Button disabled={busy} type="submit" className="w-full gap-2">
-              <LogIn className="h-4 w-4" aria-hidden />
-              {busy ? "Signing in…" : "Sign in"}
-            </Button>
-          </form>
-        </Card>
-      ) : null}
-
       {showFirebaseSignInForm ? (
         <Card>
           <CardHeader>
@@ -599,39 +538,6 @@ function LoginPageContent() {
                     : "Sign in"}
               </Button>
             </form>
-          </div>
-        </Card>
-      ) : null}
-
-      {showDemoShortcuts ? (
-        <Card className="border-dashed">
-          <CardHeader>
-            <CardTitle>Quick entry</CardTitle>
-            <p className="mt-1 text-sm text-muted">
-              {provider === "firebase"
-                ? "Shortcut for local development — opens without a full sign-in."
-                : "Jump straight into a role."}
-            </p>
-          </CardHeader>
-          <div className="flex flex-wrap gap-2">
-            <Button
-              variant="secondary"
-              className="min-w-36 flex-1 gap-2"
-              onClick={() => goDemo("driver")}
-              type="button"
-            >
-              <Car className="h-4 w-4 shrink-0" aria-hidden />
-              Continue as driver
-            </Button>
-            <Button
-              variant="secondary"
-              className="min-w-36 flex-1 gap-2"
-              onClick={() => goDemo("manager")}
-              type="button"
-            >
-              <Briefcase className="h-4 w-4 shrink-0" aria-hidden />
-              Continue as manager
-            </Button>
           </div>
         </Card>
       ) : null}

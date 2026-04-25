@@ -40,6 +40,7 @@ import { useSessionBranch } from "@/context/session-branch-context";
 import { useHybridTripEta } from "@/hooks/use-hybrid-trip-eta";
 import { useRunningLabel } from "@/hooks/use-running-label";
 import { trackGa4Event } from "@/lib/analytics";
+import { getAuthHeader } from "@/lib/client-auth";
 import { journeyDateLabel } from "@/lib/date-labels";
 import { ensureFirebaseClients } from "@/lib/firebase";
 import { gpsCoordsStartLabel } from "@/lib/gps-start-label";
@@ -335,8 +336,10 @@ export default function DriverDashboardPage() {
         }
 
         setVehicleLookupState("loading");
+        const authHeader = await getAuthHeader();
         const res = await fetch(
           `/api/dvla/vehicle?registration=${encodeURIComponent(reg)}`,
+          { headers: authHeader },
         );
         const data = (await res.json().catch(() => ({}))) as {
           found?: boolean;
