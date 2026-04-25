@@ -427,15 +427,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return;
     }
     try {
-      const { GoogleAuthProvider, signInWithPopup } = await import(
-        "firebase/auth"
-      );
+      const { GoogleAuthProvider, signInWithPopup, signInWithRedirect } =
+        await import("firebase/auth");
       if (providerId === "google") {
         const google = new GoogleAuthProvider();
         google.addScope("profile");
         google.addScope("email");
         google.setCustomParameters({ prompt: "select_account" });
-        await signInWithPopup(clients.auth, google);
+        try {
+          await signInWithPopup(clients.auth, google);
+        } catch (popupErr) {
+          const code =
+            popupErr && typeof popupErr === "object" && "code" in popupErr
+              ? String((popupErr as { code?: string }).code ?? "")
+              : "";
+          // Some embedded/mobile browsers block popup windows; fall back to redirect auth.
+          if (
+            code === "auth/popup-blocked" ||
+            code === "auth/web-storage-unsupported" ||
+            code === "auth/operation-not-supported-in-this-environment"
+          ) {
+            await signInWithRedirect(clients.auth, google);
+            return;
+          }
+          throw popupErr;
+        }
         return;
       }
       setError("Unsupported OAuth provider.");
