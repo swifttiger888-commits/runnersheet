@@ -46,6 +46,16 @@ npm run deploy
 
 `deploy` runs `opennextjs-cloudflare build` then `opennextjs-cloudflare deploy`. Set the same `NEXT_PUBLIC_*` variables you use in `.env.local` in the Cloudflare dashboard (**Workers & Pages → your worker → Settings → Variables**) for production builds, or rely on a CI secret store—`next build` inlines `NEXT_PUBLIC_*` at build time.
 
+**From GitHub Actions (optional)**
+
+Workflow: [`.github/workflows/deploy-cloudflare.yml`](.github/workflows/deploy-cloudflare.yml) runs on every push to `main` and on **Actions → Run workflow** (if enabled).
+
+1. In the GitHub repo, add **Settings → Secrets and variables → Actions → New repository secret**: `CLOUDFLARE_API_TOKEN` with a token that can deploy Workers to this account (e.g. **Create Custom Token** with *Workers Scripts:Edit* and the zones you need, or a suitable *Edit Cloudflare Workers* template).
+2. Add **repository secrets** for the same `NEXT_PUBLIC_*` values you use in production (see [`.env.example`](.env.example)) so the CI build matches what you set in the Cloudflare dashboard. Omitted optional secrets are empty for that build; prefer setting `NEXT_PUBLIC_SITE_URL` to `https://runnersheet.win` for production.
+3. Pushes to `main` will build and run `wrangler deploy --keep-vars` so [dashboard](https://dash.cloudflare.com/) `vars` are not wiped.
+
+Until `CLOUDFLARE_API_TOKEN` is set, the deploy job is skipped (CI on `main` is not expected to fail).
+
 **Preview locally (production bundle)**
 
 ```bash
