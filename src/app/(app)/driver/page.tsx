@@ -777,7 +777,7 @@ export default function DriverDashboardPage() {
               {vehicleLookupState === "error" ? (
                 <p className="inline-flex items-center gap-1.5 text-xs text-warning">
                   <AlertTriangle className="h-3.5 w-3.5" aria-hidden />
-                  DVLA unavailable — you can still start your journey.
+                  {vehicleLookupError || "DVLA unavailable"} — you can still start your journey.
                 </p>
               ) : null}
             </div>

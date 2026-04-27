@@ -65,6 +65,7 @@ export async function GET(req: Request) {
         payload?.errorCode === "NOT_FOUND" ||
         res.status === 404 ||
         msgLower.includes("vehicle not found");
+      console.error("[dvla] lookup failed", { status: res.status, registrationNumber, payload });
       return NextResponse.json(
         {
           found: false,
@@ -87,7 +88,8 @@ export async function GET(req: Request) {
       model: payload.model ?? "",
       color: payload.colour ?? "",
     });
-  } catch {
+  } catch (e) {
+    console.error("[dvla] fetch error", { registrationNumber, error: String(e) });
     return NextResponse.json(
       {
         found: false,
