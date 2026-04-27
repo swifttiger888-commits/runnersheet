@@ -857,8 +857,8 @@ export default function DriverDashboardPage() {
               disabled={
                 busy ||
                 vehicleLookupState === "loading" ||
-                vehicleLookupState === "not_found" ||
-                vehicleLookupState !== "found"
+                vehicleLookupState === "idle" ||
+                vehicleLookupState === "not_found"
               }
               type="submit"
             >
