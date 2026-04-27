@@ -15,6 +15,7 @@
   --ring: #7c6dff;
   --danger: #f87171;
   --danger-bg: rgba(185, 28, 28, 0.22);
+  --warning: #fbbf24;
 
   /* Elevation (referenced from @theme — keep names distinct to avoid circular var()) */
   --elev-shadow-card: 0 1px 0 0 rgba(255, 255, 255, 0.055),
@@ -47,6 +48,7 @@
   --color-ring: var(--ring);
   --color-danger: var(--danger);
   --color-danger-bg: var(--danger-bg);
+  --color-warning: var(--warning);
   --font-sans: var(--font-sans-ui), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-mono-ui), ui-monospace, monospace;
   --shadow-card: var(--elev-shadow-card);

@@ -412,7 +412,7 @@ export default function DriverDashboardPage() {
       setFormError("We couldn't find that vehicle. Please check the registration.");
       return;
     }
-    if (vehicleLookupState !== "found" || !certifiedVehicle) {
+    if (vehicleLookupState === "loading" || vehicleLookupState === "idle") {
       setFormError("Please wait for DVLA check to finish before starting.");
       return;
     }
@@ -768,10 +768,16 @@ export default function DriverDashboardPage() {
                   {certifiedVehicleLabel}
                 </p>
               ) : null}
-              {vehicleLookupState === "not_found" || vehicleLookupState === "error" ? (
+              {vehicleLookupState === "not_found" ? (
                 <p className="inline-flex items-center gap-1.5 text-xs text-danger">
                   <AlertTriangle className="h-3.5 w-3.5" aria-hidden />
                   {vehicleLookupError}
+                </p>
+              ) : null}
+              {vehicleLookupState === "error" ? (
+                <p className="inline-flex items-center gap-1.5 text-xs text-warning">
+                  <AlertTriangle className="h-3.5 w-3.5" aria-hidden />
+                  DVLA unavailable — you can still start your journey.
                 </p>
               ) : null}
             </div>

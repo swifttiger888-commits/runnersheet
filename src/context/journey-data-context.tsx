@@ -51,7 +51,7 @@ type StartJourneyInput = {
     make: string;
     model: string;
     color: string;
-  };
+  } | null;
 };
 
 type JourneyDataContextValue = {
@@ -296,9 +296,9 @@ export function JourneyDataProvider({ children }: { children: React.ReactNode })
         createdAt: now,
         milesTraveled: null,
         durationSeconds: null,
-        certifiedVehicleMake: input.certifiedVehicle.make,
-        certifiedVehicleModel: input.certifiedVehicle.model,
-        certifiedVehicleColor: input.certifiedVehicle.color,
+        certifiedVehicleMake: input.certifiedVehicle?.make ?? null,
+        certifiedVehicleModel: input.certifiedVehicle?.model ?? null,
+        certifiedVehicleColor: input.certifiedVehicle?.color ?? null,
       };
 
       if (canUseFirestore && user) {
@@ -339,9 +339,9 @@ export function JourneyDataProvider({ children }: { children: React.ReactNode })
           createdAt: serverTimestamp(),
           milesTraveled: null,
           durationSeconds: null,
-          certifiedVehicleMake: input.certifiedVehicle.make,
-          certifiedVehicleModel: input.certifiedVehicle.model,
-          certifiedVehicleColor: input.certifiedVehicle.color,
+          certifiedVehicleMake: input.certifiedVehicle?.make ?? null,
+          certifiedVehicleModel: input.certifiedVehicle?.model ?? null,
+          certifiedVehicleColor: input.certifiedVehicle?.color ?? null,
         });
         return;
       }
