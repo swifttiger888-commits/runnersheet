@@ -304,9 +304,14 @@ export default function ManagerAllJourneysPage() {
           const data = (await res.json().catch(() => ({}))) as {
             intent?: AiIntent;
             error?: string;
+            details?: unknown;
           };
           if (!res.ok || !data.intent) {
-            setAiError(data.error || "Magic Search failed.");
+            const baseMsg = data.error || "Magic Search failed.";
+            const detailMsg = data.details
+              ? ` [${res.status}] ${typeof data.details === "string" ? data.details : JSON.stringify(data.details)}`
+              : ` [${res.status}]`;
+            setAiError(baseMsg + detailMsg);
             setAiRows(null);
             setAiIntent(null);
             setDidYouMeanRegs([]);
@@ -539,9 +544,14 @@ export default function ManagerAllJourneysPage() {
                     const data = (await res.json().catch(() => ({}))) as {
                       intent?: AiIntent;
                       error?: string;
+                      details?: unknown;
                     };
                     if (!res.ok || !data.intent) {
-                      setAiError(data.error || "Magic Search failed.");
+                      const baseMsg = data.error || "Magic Search failed.";
+                      const detailMsg = data.details
+                        ? ` [${res.status}] ${typeof data.details === "string" ? data.details : JSON.stringify(data.details)}`
+                        : ` [${res.status}]`;
+                      setAiError(baseMsg + detailMsg);
                       setAiRows(null);
                       setAiIntent(null);
                       setActiveFilterMeta(null);

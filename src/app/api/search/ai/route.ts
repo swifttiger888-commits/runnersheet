@@ -158,6 +158,7 @@ export async function POST(req: Request) {
 
     const payload = (await deepSeekRes.json().catch(() => ({}))) as DeepSeekChatResponse;
     if (!deepSeekRes.ok) {
+      console.error("deepseek non-ok", deepSeekRes.status, payload);
       return NextResponse.json(
         { error: "DeepSeek request failed.", details: payload },
         { status: deepSeekRes.status },
