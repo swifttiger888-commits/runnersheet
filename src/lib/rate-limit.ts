@@ -5,6 +5,11 @@ type Bucket = {
   resetAt: number;
 };
 
+type LimitMetric = {
+  blocked: number;
+  lastBlockedAt: number;
+};
+
 type LimitOptions = {
   scope: string;
   limit: number;
@@ -15,10 +20,15 @@ type LimitOptions = {
 declare global {
   // eslint-disable-next-line no-var
   var __rsRateLimitStore: Map<string, Bucket> | undefined;
+  // eslint-disable-next-line no-var
+  var __rsRateLimitMetrics: Map<string, LimitMetric> | undefined;
 }
 
 const store = globalThis.__rsRateLimitStore ?? new Map<string, Bucket>();
 globalThis.__rsRateLimitStore = store;
+const metrics =
+  globalThis.__rsRateLimitMetrics ?? new Map<string, LimitMetric>();
+globalThis.__rsRateLimitMetrics = metrics;
 
 function getClientIp(req: Request): string {
   const cf = req.headers.get("cf-connecting-ip")?.trim();
@@ -58,6 +68,17 @@ export function rateLimitOrResponse(
   store.set(key, current);
   if (current.count <= options.limit) return null;
 
+  const m = metrics.get(options.scope) ?? { blocked: 0, lastBlockedAt: 0 };
+  m.blocked += 1;
+  m.lastBlockedAt = now;
+  metrics.set(options.scope, m);
+
+  // Keep logs concise and non-sensitive (no full tokens, no body).
+  console.warn("[rate-limit] blocked request", {
+    scope: options.scope,
+    actorType: options.userId ? "user" : "ip",
+  });
+
   const retryAfterSec = Math.max(
     1,
     Math.ceil((current.resetAt - now) / 1000),
@@ -74,4 +95,18 @@ export function rateLimitOrResponse(
       },
     },
   );
+}
+
+export function getRateLimitMetrics() {
+  const out: Record<string, { blocked: number; lastBlockedAt: string | null }> =
+    {};
+  for (const [scope, m] of metrics.entries()) {
+    out[scope] = {
+      blocked: m.blocked,
+      lastBlockedAt: m.lastBlockedAt
+        ? new Date(m.lastBlockedAt).toISOString()
+        : null,
+    };
+  }
+  return out;
 }
