@@ -43,7 +43,10 @@ export function AppShell({
                   unoptimized
                 />
                 <p className="text-xs leading-snug text-muted">
-                  A free tool · Built by drivers, for AC drivers
+                  A free tool · Built for Arnold Clark drivers
+                </p>
+                <p className="pt-0.5 text-[11px] leading-snug text-muted/85">
+                  By Johnny · Arnold Clark Leeds
                 </p>
               </div>
             </div>
