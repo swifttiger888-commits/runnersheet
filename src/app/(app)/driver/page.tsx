@@ -1192,7 +1192,6 @@ export default function DriverDashboardPage() {
                                     return (
                                       <Button
                                         type="button"
-                                        size="sm"
                                         variant="secondary"
                                         onClick={() => openCorrectionEditor(j)}
                                         disabled={correctionBusy}
@@ -1268,7 +1267,6 @@ export default function DriverDashboardPage() {
                                   <div className="flex items-center gap-2">
                                     <Button
                                       type="button"
-                                      size="sm"
                                       onClick={() => void submitCorrection()}
                                       disabled={correctionBusy}
                                     >
@@ -1276,7 +1274,6 @@ export default function DriverDashboardPage() {
                                     </Button>
                                     <Button
                                       type="button"
-                                      size="sm"
                                       variant="ghost"
                                       onClick={closeCorrectionEditor}
                                       disabled={correctionBusy}
