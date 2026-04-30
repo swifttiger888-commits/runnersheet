@@ -145,7 +145,37 @@ export default function DriverDashboardPage() {
     () => journeys.find((j) => j.status === "active"),
     [journeys],
   );
+  const [activeNowMs, setActiveNowMs] = useState(() => Date.now());
   const runningLabel = useRunningLabel(active);
+
+  useEffect(() => {
+    if (!active) return;
+    const tick = () => setActiveNowMs(Date.now());
+    tick();
+    const t = window.setInterval(tick, 60_000);
+    return () => window.clearInterval(t);
+  }, [active]);
+
+  const activeDurationSeconds = useMemo(() => {
+    if (!active) return 0;
+    return Math.max(
+      0,
+      Math.round((activeNowMs - active.startTime.getTime()) / 1000),
+    );
+  }, [active, activeNowMs]);
+
+  const needsEndReminder = activeDurationSeconds >= LATE_END_THRESHOLD_SECONDS;
+  const isVeryLateReminder = activeDurationSeconds >= VERY_LATE_END_THRESHOLD_SECONDS;
+  const isAfterCutoff = useMemo(() => {
+    const now = new Date(activeNowMs);
+    return now.getHours() >= 17;
+  }, [activeNowMs]);
+  const startedToday = useMemo(() => {
+    if (!active) return false;
+    const now = new Date(activeNowMs);
+    return active.startTime.toDateString() === now.toDateString();
+  }, [active, activeNowMs]);
+  const isPastSameDayCutoff = Boolean(active && startedToday && isAfterCutoff);
 
   const branchForEta = useMemo((): WorkingBranch => {
     const hb = active?.homeBranch?.trim();
@@ -643,6 +673,37 @@ export default function DriverDashboardPage() {
           <CheckCircle2 className="h-4 w-4" aria-hidden />
           All jobs synced to office.
         </p>
+      ) : null}
+      {active && (needsEndReminder || isPastSameDayCutoff) ? (
+        <div
+          className={`rounded-xl border px-3 py-2 text-xs ${
+            isPastSameDayCutoff
+              ? "border-danger/35 bg-danger-bg text-danger"
+              : "border-[#8f7a3a]/35 bg-[#8f7a3a]/12 text-[#f0dca4]"
+          }`}
+          role="alert"
+        >
+          <p className="inline-flex items-center gap-1.5 font-semibold">
+            <AlertTriangle className="h-4 w-4" aria-hidden />
+            {isPastSameDayCutoff
+              ? "Journey is still open after 5:00 PM."
+              : isVeryLateReminder
+                ? "Journey has been active for a long time — end it if finished."
+                : "Reminder: end your journey when the job is complete."}
+          </p>
+          <div className="mt-1 flex flex-wrap items-center gap-2">
+            <span>
+              Active for {formatDurationLabel(activeDurationSeconds) || "0 min"}.
+            </span>
+            <button
+              type="button"
+              onClick={focusEndJourneySection}
+              className="font-semibold text-primary underline underline-offset-4 hover:opacity-90"
+            >
+              Jump to End job
+            </button>
+          </div>
+        </div>
       ) : null}
 
       {active ? (
