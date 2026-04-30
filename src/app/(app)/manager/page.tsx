@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import {
+  Activity,
   AlertTriangle,
   BarChart3,
   Briefcase,
@@ -67,6 +68,7 @@ const quick = [
   },
   { href: "/manager/drivers/add", label: "Add team member", icon: CirclePlus },
   { href: "/manager/reports", label: "Reports (PDF)", icon: FileText },
+  { href: "/manager/diagnostics", label: "Security diagnostics", icon: Activity },
 ] as const;
 
 export default function ManagerDashboardPage() {
