@@ -41,9 +41,9 @@ export default function Home() {
           </span>
         </div>
         <p className="max-w-prose text-xs leading-relaxed text-muted">
-          Built by Johnny (Arnold Clark, Leeds). Independent app; not
-          affiliated with Arnold Clark. This app is not a replacement for your
-          AC Runner Sheet folder.
+          Independent app; not affiliated with Arnold Clark. Currently on trial
+          — this app is not a replacement for your AC Runner Sheet folder until
+          approved by your branch manager.
         </p>
         <p>
           <Link
