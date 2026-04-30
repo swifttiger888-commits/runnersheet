@@ -30,6 +30,10 @@ const nextConfig: NextConfig = {
         headers: [{ key: "Cache-Control", value: staleWhileRevalidate }],
       },
       {
+        source: "/apple-touch-icon.png",
+        headers: [{ key: "Cache-Control", value: staleWhileRevalidate }],
+      },
+      {
         source: "/manifest.webmanifest",
         headers: [{ key: "Cache-Control", value: staleWhileRevalidate }],
       },
