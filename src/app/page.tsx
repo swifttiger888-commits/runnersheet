@@ -11,7 +11,7 @@ import {
   TabletSmartphone,
 } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
-import { Card, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardHeader } from "@/components/ui/card";
 
 export default function Home() {
   return (
@@ -145,59 +145,82 @@ export default function Home() {
             </li>
           </ul>
           <p className="mt-2 text-[10px] leading-snug text-muted">
-            Illustrative preview — results come from your Firestore data after
-            sign-in.
+            Illustrative preview only — not interactive. Real journeys appear
+            after sign-in.
           </p>
         </div>
       </section>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Get started</CardTitle>
-          <p className="mt-1 text-sm text-muted">
-            Choose the sign-in that matches your role. Your access is set in
-            RunnerSheet (same login flow; we just show the right guidance).
-          </p>
-          <div className="flex flex-wrap gap-2 pt-1 text-xs text-muted">
-            <span className="rounded-full border border-border px-2.5 py-1">
-              Driver + Manager access
-            </span>
-            <span className="rounded-full border border-border px-2.5 py-1">
-              Instant branch filtering
-            </span>
-            <span className="rounded-full border border-border px-2.5 py-1">
-              PDF-ready records
-            </span>
+      <section
+        className="space-y-3"
+        aria-labelledby="get-started-heading"
+      >
+        <p className="text-center text-xs font-semibold uppercase tracking-wider text-primary sm:text-left">
+          Sign in (live)
+        </p>
+        <Card className="border-primary/30 bg-primary/[0.07] p-0! shadow-[0_14px_44px_-14px_rgba(99,91,255,0.45)] ring-1 ring-primary/25">
+          <CardHeader className="mb-0! border-b border-border/60 bg-surface/80 px-5 pb-4 pt-5">
+            <h2
+              id="get-started-heading"
+              className="text-lg font-bold tracking-tight text-foreground"
+            >
+              Sign in to RunnerSheet
+            </h2>
+            <p className="mt-1.5 text-sm text-muted">
+              Use your work account — your role (driver or manager) comes from
+              your RunnerSheet profile after authentication.
+            </p>
+            <div className="flex flex-wrap gap-2 pt-2 text-xs text-muted">
+              <span className="rounded-full border border-border/80 bg-background/60 px-2.5 py-1">
+                Driver + Manager access
+              </span>
+              <span className="rounded-full border border-border/80 bg-background/60 px-2.5 py-1">
+                Branch filtering
+              </span>
+              <span className="rounded-full border border-border/80 bg-background/60 px-2.5 py-1">
+                PDF-ready records
+              </span>
+            </div>
+          </CardHeader>
+          <div className="space-y-3 px-5 pb-5 pt-4">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-muted">
+              Choose how you sign in
+            </p>
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <Link
+                href="/login?as=driver"
+                className="inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-primary px-4 text-sm font-semibold tracking-tight text-primary-foreground shadow-control transition-[filter] duration-200 hover:brightness-110 active:brightness-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/45 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+              >
+                <Car className="h-4 w-4" aria-hidden />
+                Driver sign in
+                <ArrowRight className="h-4 w-4" aria-hidden />
+              </Link>
+              <Link
+                href="/login?as=manager"
+                className="inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl border border-border bg-surface px-4 text-sm font-semibold tracking-tight text-foreground transition-[background-color,filter,color] duration-200 hover:bg-muted-bg/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/45 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+              >
+                <Briefcase className="h-4 w-4" aria-hidden />
+                Manager sign in
+                <ArrowRight className="h-4 w-4" aria-hidden />
+              </Link>
+            </div>
+            <div className="rounded-xl border border-border/70 bg-background/90 px-3 py-2 shadow-inset-field">
+              <Link
+                className="inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-lg px-3 text-sm font-semibold text-foreground transition-colors hover:bg-muted-bg/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/45 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                href="/login"
+              >
+                <LogIn className="h-4 w-4 shrink-0" aria-hidden />
+                <span>
+                  Other sign-in{" "}
+                  <span className="font-normal text-muted">
+                    (same login, general entry)
+                  </span>
+                </span>
+              </Link>
+            </div>
           </div>
-        </CardHeader>
-        <div className="flex flex-col gap-2 border-t border-border px-5 pb-5 pt-3 sm:flex-row">
-          <Link
-            href="/login?as=driver"
-            className="inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-primary px-4 text-sm font-semibold tracking-tight text-primary-foreground shadow-control transition-[filter] duration-200 hover:brightness-110 active:brightness-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/45 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-          >
-            <Car className="h-4 w-4" aria-hidden />
-            Driver sign in
-            <ArrowRight className="h-4 w-4" aria-hidden />
-          </Link>
-          <Link
-            href="/login?as=manager"
-            className="inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl border border-border bg-surface px-4 text-sm font-semibold tracking-tight text-foreground transition-[background-color,filter,color] duration-200 hover:bg-muted-bg/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/45 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-          >
-            <Briefcase className="h-4 w-4" aria-hidden />
-            Manager sign in
-            <ArrowRight className="h-4 w-4" aria-hidden />
-          </Link>
-        </div>
-        <div className="border-t border-border px-5 pb-5 pt-3">
-          <Link
-            className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl px-4 text-sm font-semibold text-muted transition-colors hover:bg-muted-bg/40 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/45 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-            href="/login"
-          >
-            <LogIn className="h-4 w-4" aria-hidden />
-            Other sign-in
-          </Link>
-        </div>
-      </Card>
+        </Card>
+      </section>
     </AppShell>
   );
 }
