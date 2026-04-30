@@ -139,7 +139,41 @@ service cloud.firestore {
 
       allow update: if signedIn()
         && resource.data.userId == request.auth.uid
-        && request.resource.data.userId == resource.data.userId;
+        && request.resource.data.userId == resource.data.userId
+        && (
+          (
+            // End/cancel journey flow: active -> completed
+            resource.data.status == 'active'
+            && request.resource.data.status == 'completed'
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+              'userId',
+              'endingMileage',
+              'destinationPostcode',
+              'endTime',
+              'status',
+              'wasCancelled',
+              'milesTraveled',
+              'durationSeconds',
+            ])
+          )
+          || (
+            // Driver correction flow for completed journeys
+            resource.data.status == 'completed'
+            && request.resource.data.status == 'completed'
+            && request.resource.data.needsReview == true
+            && request.resource.data.isLateEntry == true
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+              'userId',
+              'startTime',
+              'endTime',
+              'durationSeconds',
+              'needsReview',
+              'isLateEntry',
+              'isApproved',
+              'correctionLog',
+            ])
+          )
+        );
     }
 
     match /branches/{branchId} {

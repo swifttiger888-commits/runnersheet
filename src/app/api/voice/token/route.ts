@@ -30,10 +30,11 @@ export async function POST(req: Request) {
     );
   }
 
+  // Security default: short-lived by default; still configurable for automation.
   const ttl = Number.isFinite(body.ttlMinutes)
     ? Number(body.ttlMinutes)
-    : 60 * 24 * 30;
-  const ttlMinutes = Math.min(60 * 24 * 90, Math.max(5, Math.round(ttl)));
+    : 60 * 24;
+  const ttlMinutes = Math.min(60 * 24 * 30, Math.max(5, Math.round(ttl)));
 
   try {
     const auth = getAdminAuth();

@@ -23,7 +23,7 @@ type TokenResp = {
 export default function VoiceSetupPage() {
   const [startToken, setStartToken] = useState("");
   const [endToken, setEndToken] = useState("");
-  const [ttlDays, setTtlDays] = useState("30");
+  const [ttlDays, setTtlDays] = useState("7");
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
 
@@ -66,7 +66,7 @@ export default function VoiceSetupPage() {
     setBusy(true);
     setMsg(null);
     try {
-      const ttl = Math.max(1, Math.min(90, Number(ttlDays) || 30));
+      const ttl = Math.max(1, Math.min(30, Number(ttlDays) || 7));
       const ttlMinutes = ttl * 24 * 60;
       const [s, e] = await Promise.all([
         mint("start", ttlMinutes),
@@ -102,7 +102,7 @@ export default function VoiceSetupPage() {
               placeholder="30"
               className="max-w-28"
             />
-            <span>days validity (1-90)</span>
+            <span>days validity (1-30)</span>
           </div>
           <Button type="button" onClick={() => void generate()} disabled={busy}>
             {busy ? "Generating…" : "Generate secure voice links"}
