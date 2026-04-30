@@ -7,7 +7,6 @@ import {
   LogIn,
   Mic,
   MapPin,
-  ShieldCheck,
   Sparkles,
   TabletSmartphone,
 } from "lucide-react";
@@ -35,10 +34,6 @@ export default function Home() {
           <span className="inline-flex min-h-8 items-center gap-1.5 rounded-full border border-border bg-surface px-3 text-xs font-medium text-muted">
             <Sparkles className="h-3.5 w-3.5 text-primary" aria-hidden />
             Magic Search
-          </span>
-          <span className="inline-flex min-h-8 items-center gap-1.5 rounded-full border border-border bg-surface px-3 text-xs font-medium text-muted">
-            <ShieldCheck className="h-3.5 w-3.5 text-primary" aria-hidden />
-            Privacy shield
           </span>
           <span className="inline-flex min-h-8 items-center gap-1.5 rounded-full border border-border bg-surface px-3 text-xs font-medium text-muted">
             <Mic className="h-3.5 w-3.5 text-primary" aria-hidden />
@@ -113,8 +108,8 @@ export default function Home() {
           </h2>
           <p className="max-w-prose text-sm text-muted">
             Managers type or speak a plain-English query; RunnerSheet turns it
-            into filters and lists matching jobs. Staff names stay on your side
-            of the privacy shield.
+            into filters and lists matching jobs. Sensitive labels stay on your
+            side until you open a journey.
           </p>
         </div>
         <div className="mx-auto max-w-sm rounded-[1.25rem] border border-border bg-[#0d0d0f] p-3 shadow-card-quiet">

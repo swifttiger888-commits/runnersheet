@@ -690,7 +690,7 @@ export default function ManagerAllJourneysPage() {
           </Button>
         </div>
         <p className="inline-flex items-center gap-1.5 text-xs text-muted">
-          Privacy shield: driver names/IDs are matched locally and redacted before AI.
+          Driver names/IDs are matched locally and redacted before AI.
         </p>
         {voiceListening ? (
           <p className="text-xs text-muted">Listening… speak your search now.</p>
