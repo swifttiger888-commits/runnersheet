@@ -1,6 +1,7 @@
 import { FieldValue } from "firebase-admin/firestore";
 import { NextResponse } from "next/server";
 import { getAdminDb } from "@/lib/firebase-admin";
+import { rateLimitOrResponse } from "@/lib/rate-limit";
 import { verifyVoiceToken } from "@/lib/voice-token";
 
 export const runtime = "nodejs";
@@ -79,6 +80,13 @@ function parseEnd(input: EndQuery) {
 }
 
 export async function GET(req: Request) {
+  const limited = rateLimitOrResponse(req, {
+    scope: "api:voice-end-get",
+    limit: 30,
+    windowMs: 60_000,
+  });
+  if (limited) return limited;
+
   const { searchParams } = new URL(req.url);
   const token = parseEnd({
     token: searchParams.get("t") ?? searchParams.get("token") ?? undefined,
@@ -105,6 +113,13 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
+  const limited = rateLimitOrResponse(req, {
+    scope: "api:voice-end-post",
+    limit: 30,
+    windowMs: 60_000,
+  });
+  if (limited) return limited;
+
   const body = (await req.json().catch(() => ({}))) as EndBody;
   const token = parseEnd({ token: body.token });
   if (!token) {

@@ -1,7 +1,15 @@
 import { NextResponse } from "next/server";
 import { nearestUkPostcodeFromLatLng } from "@/lib/postcodes-io";
+import { rateLimitOrResponse } from "@/lib/rate-limit";
 
 export async function GET(req: Request) {
+  const limited = rateLimitOrResponse(req, {
+    scope: "api:postcodes-nearest",
+    limit: 120,
+    windowMs: 60_000,
+  });
+  if (limited) return limited;
+
   const url = new URL(req.url);
   const lat = Number(url.searchParams.get("lat"));
   const lon = Number(url.searchParams.get("lon") ?? url.searchParams.get("lng"));

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getAdminAuth } from "@/lib/firebase-admin";
+import { rateLimitOrResponse } from "@/lib/rate-limit";
 import { signVoiceToken, type VoiceAction } from "@/lib/voice-token";
 
 export const runtime = "nodejs";
@@ -39,6 +40,14 @@ export async function POST(req: Request) {
   try {
     const auth = getAdminAuth();
     const decoded = await auth.verifyIdToken(idToken);
+    const limited = rateLimitOrResponse(req, {
+      scope: "api:voice-token",
+      userId: decoded.uid,
+      limit: 12,
+      windowMs: 60_000,
+    });
+    if (limited) return limited;
+
     const userId = decoded.uid;
     const exp = Date.now() + ttlMinutes * 60 * 1000;
     const token = signVoiceToken({ sub: userId, act: action, exp });

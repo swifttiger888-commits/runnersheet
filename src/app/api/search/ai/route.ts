@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireAuthedUser } from "@/lib/api-auth";
+import { rateLimitOrResponse } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
 
@@ -129,6 +130,13 @@ function normalizeIntent(input: unknown): AiJourneyIntent {
 export async function POST(req: Request) {
   const authResult = await requireAuthedUser(req);
   if (authResult instanceof NextResponse) return authResult;
+  const limited = rateLimitOrResponse(req, {
+    scope: "api:search-ai",
+    userId: authResult.uid,
+    limit: 24,
+    windowMs: 60_000,
+  });
+  if (limited) return limited;
 
   const body = (await req.json().catch(() => ({}))) as {
     text?: string;

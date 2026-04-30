@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireAuthedUser } from "@/lib/api-auth";
+import { rateLimitOrResponse } from "@/lib/rate-limit";
 import {
   formatUkVehicleRegistration,
   sanitizeAlphanumericUpper,
@@ -24,6 +25,13 @@ type DvlaVehicleResponse = {
 export async function GET(req: Request) {
   const authResult = await requireAuthedUser(req);
   if (authResult instanceof NextResponse) return authResult;
+  const limited = rateLimitOrResponse(req, {
+    scope: "api:dvla",
+    userId: authResult.uid,
+    limit: 60,
+    windowMs: 60_000,
+  });
+  if (limited) return limited;
 
   const rawReg = new URL(req.url).searchParams.get("registration") ?? "";
   const registration = formatUkVehicleRegistration(rawReg);
