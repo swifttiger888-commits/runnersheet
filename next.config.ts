@@ -12,16 +12,6 @@ const nextConfig: NextConfig = {
   experimental: {
     optimizePackageImports: ["lucide-react"],
   },
-  async redirects() {
-    return [
-      {
-        source: "/:path*",
-        has: [{ type: "host", value: "www.runnersheet.win" }],
-        destination: "https://runnersheet.win/:path*",
-        permanent: true,
-      },
-    ];
-  },
   async headers() {
     // Cache-first feel with background refresh for static assets.
     // This improves perceived performance in weak signal areas after first load.
