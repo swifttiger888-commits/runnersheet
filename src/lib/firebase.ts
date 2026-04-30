@@ -68,7 +68,7 @@ export async function ensureFirebaseClients(): Promise<FirebaseClients | null> {
         /* No-op: auth will still work even if explicit persistence cannot be set. */
       });
   }
-  await authPersistenceInitPromise;
+  void authPersistenceInitPromise;
 
   if (!persistenceInitPromise) {
     persistenceInitPromise = enableMultiTabIndexedDbPersistence(cached.db).catch(
@@ -77,7 +77,7 @@ export async function ensureFirebaseClients(): Promise<FirebaseClients | null> {
       },
     );
   }
-  await persistenceInitPromise;
+  void persistenceInitPromise;
   return cached;
 }
 

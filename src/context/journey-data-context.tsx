@@ -204,6 +204,9 @@ export function JourneyDataProvider({ children }: { children: React.ReactNode })
       if (cancelled) return;
 
       if (role === "driver") {
+        queueMicrotask(() => {
+          if (!cancelled) setAlerts([]);
+        });
         const q = query(
           collection(db, "journeys"),
           where("userId", "==", user.uid),
@@ -254,25 +257,27 @@ export function JourneyDataProvider({ children }: { children: React.ReactNode })
         );
       }
 
-      const aq = query(
-        collection(db, "alerts"),
-        orderBy("createdAt", "desc"),
-        limit(400),
-      );
-      unsubs.push(
-        onSnapshot(
-          aq,
-          (snap) => {
-            const rows = snap.docs.map((d) =>
-              mapAlertDoc(d.id, d.data() as Record<string, unknown>),
-            );
-            setAlerts(rows);
-          },
-          () => {
-            /* alerts collection may be missing */
-          },
-        ),
-      );
+      if (role !== "driver") {
+        const aq = query(
+          collection(db, "alerts"),
+          orderBy("createdAt", "desc"),
+          limit(400),
+        );
+        unsubs.push(
+          onSnapshot(
+            aq,
+            (snap) => {
+              const rows = snap.docs.map((d) =>
+                mapAlertDoc(d.id, d.data() as Record<string, unknown>),
+              );
+              setAlerts(rows);
+            },
+            () => {
+              /* alerts collection may be missing */
+            },
+          ),
+        );
+      }
     })();
 
     return () => {
