@@ -3,7 +3,8 @@ export function openPdfPreview(params: {
   fallbackDownloadName: string;
 }): void {
   const { bytes, fallbackDownloadName } = params;
-  const blob = new Blob([bytes], { type: "application/pdf" });
+  const normalized = new Uint8Array(bytes);
+  const blob = new Blob([normalized], { type: "application/pdf" });
   const url = URL.createObjectURL(blob);
 
   // Open print-ready PDF preview in a new tab when allowed.
