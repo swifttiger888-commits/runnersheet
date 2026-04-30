@@ -29,7 +29,6 @@ import { TripEtaPanel } from "@/components/driver/trip-eta-panel";
 import { AppShell } from "@/components/app-shell";
 import { BranchSelector } from "@/components/branch-selector";
 import { LoadingScreen } from "@/components/loading-screen";
-import { OpenInMaps } from "@/components/open-in-maps";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -801,14 +800,12 @@ export default function DriverDashboardPage() {
             <TripEtaPanel eta={tripEta} showLocationControls />
           </CardHeader>
           <div className="flex flex-col gap-4 border-t border-border px-5 pb-5 pt-3">
-            {active.destinationPostcode ? (
-              <OpenInMaps destination={active.destinationPostcode} />
-            ) : (
+            {!active.destinationPostcode ? (
               <p className="rounded-xl border border-border bg-surface px-3 py-2 text-xs text-muted">
                 GPS destination will be captured when you tap{" "}
                 <span className="font-semibold text-foreground">End job</span>.
               </p>
-            )}
+            ) : null}
             {formError ? (
               <p className="text-sm text-danger" role="alert">
                 {formError}

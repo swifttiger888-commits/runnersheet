@@ -21,10 +21,6 @@ function speak(text: string) {
   window.speechSynthesis.speak(utter);
 }
 
-function mapsDirUrl(destination: string): string {
-  return `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(destination)}`;
-}
-
 export default function VoiceStartPage() {
   const [vrm, setVrm] = useState("");
   const [destination, setDestination] = useState("");
@@ -57,10 +53,6 @@ export default function VoiceStartPage() {
       setMessage(`Journey started for ${confirmedVrm}.`);
       speak(`Journey started for ${confirmedVrm}`);
 
-      const dest = data.destination || next.destination;
-      if (dest) {
-        window.location.replace(mapsDirUrl(dest));
-      }
     } catch {
       setMessage("Could not start journey.");
     } finally {
