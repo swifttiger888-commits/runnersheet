@@ -58,7 +58,8 @@ export async function buildDriverJourneyPdf(params: {
   const pageHeight = 841.89;
   const left = 28;
   const topY = 815;
-  const tableStartY = 700;
+  const tableHeaderY = 700;
+  const tableBodyStartY = tableHeaderY - 22;
   const rowStep = 16;
   const bottomY = 52;
 
@@ -127,7 +128,7 @@ export async function buildDriverJourneyPdf(params: {
       font: bold,
     });
 
-    const headerBandY = tableStartY + 10;
+    const headerBandY = tableHeaderY + 10;
     page.drawRectangle({
       x: left - 2,
       y: headerBandY - 14,
@@ -144,13 +145,13 @@ export async function buildDriverJourneyPdf(params: {
 
   let page = pdf.addPage([pageWidth, pageHeight]);
   drawPageHeader(page);
-  let y = tableStartY;
+  let y = tableBodyStartY;
 
   for (const j of rows) {
     if (y < bottomY) {
       page = pdf.addPage([pageWidth, pageHeight]);
       drawPageHeader(page);
-      y = tableStartY;
+      y = tableBodyStartY;
     }
     const row = [
       clampCell(formatDateShort(j.endTime!), rowCharCaps[0]!),
@@ -191,7 +192,7 @@ export async function buildDriverJourneyPdf(params: {
   if (rows.length === 0) {
     page.drawText("No completed journeys for this driver in the selected range.", {
       x: left,
-      y: tableStartY - 8,
+      y: tableBodyStartY,
       size: 10,
       font,
       color: rgb(0.2, 0.2, 0.2),
