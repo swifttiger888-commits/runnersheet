@@ -45,6 +45,7 @@ import { journeyDateLabel } from "@/lib/date-labels";
 import { ensureFirebaseClients } from "@/lib/firebase";
 import { gpsCoordsStartLabel } from "@/lib/gps-start-label";
 import { buildDriverJourneyPdf } from "@/lib/pdf-report";
+import { openPdfPreview } from "@/lib/pdf-preview";
 import {
   formatUkPostcode,
   formatUkVehicleRegistration,
@@ -534,16 +535,11 @@ export default function DriverDashboardPage() {
         toDate,
         journeys: completed,
       });
-      const blob = new Blob([new Uint8Array(bytes)], {
-        type: "application/pdf",
-      });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
       const safeName = profile.name.toLowerCase().replace(/[^a-z0-9]+/g, "-");
-      a.href = url;
-      a.download = `runnersheet-${safeName}-${reportBranch}-${reportFromDate}-to-${reportToDate}.pdf`;
-      a.click();
-      URL.revokeObjectURL(url);
+      openPdfPreview({
+        bytes: new Uint8Array(bytes),
+        fallbackDownloadName: `runnersheet-${safeName}-${reportBranch}-${reportFromDate}-to-${reportToDate}.pdf`,
+      });
     } finally {
       setReportBusy(false);
     }
@@ -921,7 +917,7 @@ export default function DriverDashboardPage() {
               disabled={reportBusy}
             >
               <Download className="h-4 w-4" aria-hidden />
-              {reportBusy ? "Generating PDF..." : "Download my report"}
+              {reportBusy ? "Generating PDF..." : "Preview / print my report"}
             </Button>
           </div>
         </div>

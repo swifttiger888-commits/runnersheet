@@ -15,6 +15,7 @@ import {
 import { useSessionBranch } from "@/context/session-branch-context";
 import { useBranches } from "@/context/branches-context";
 import { buildDriverJourneyPdf } from "@/lib/pdf-report";
+import { openPdfPreview } from "@/lib/pdf-preview";
 
 export default function ManagerReportsPage() {
   const { journeys, loading } = useJourneyData();
@@ -73,7 +74,7 @@ export default function ManagerReportsPage() {
     return { count: filtered.length, branch, driverName };
   }, [journeys, branch, driverName, fromDate, toDate, branchNames]);
 
-  async function downloadPdf() {
+  async function previewPdf() {
     if (!branch || !driverName || branchNames.length === 0 || invalidDateRange) return;
     setBusy(true);
     try {
@@ -92,16 +93,11 @@ export default function ManagerReportsPage() {
         toDate,
         journeys: filtered,
       });
-      const blob = new Blob([new Uint8Array(bytes)], {
-        type: "application/pdf",
-      });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
       const safeDriver = driverName.toLowerCase().replace(/[^a-z0-9]+/g, "-");
-      a.download = `runnersheet-${branch}-${safeDriver}-${fromDateStr}-to-${toDateStr}.pdf`;
-      a.click();
-      URL.revokeObjectURL(url);
+      openPdfPreview({
+        bytes: new Uint8Array(bytes),
+        fallbackDownloadName: `runnersheet-${branch}-${safeDriver}-${fromDateStr}-to-${toDateStr}.pdf`,
+      });
     } finally {
       setBusy(false);
     }
@@ -211,11 +207,11 @@ export default function ManagerReportsPage() {
               driverNames.length === 0 ||
               invalidDateRange
             }
-            onClick={() => void downloadPdf()}
+            onClick={() => void previewPdf()}
             type="button"
           >
             <Download className="h-4 w-4" aria-hidden />
-            Generate driver PDF
+            Preview / print driver PDF
           </Button>
         </div>
       </Card>
