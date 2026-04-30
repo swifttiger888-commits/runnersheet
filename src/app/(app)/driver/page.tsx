@@ -7,6 +7,8 @@ import {
   AlertTriangle,
   Car,
   CheckCircle2,
+  ChevronDown,
+  ChevronRight,
   Clock3,
   Download,
   History,
@@ -207,6 +209,23 @@ export default function DriverDashboardPage() {
     }
     return map;
   }, [completed]);
+  const [expandedHistoryLabels, setExpandedHistoryLabels] = useState<string[]>([]);
+
+  useEffect(() => {
+    const labels = Array.from(groupedHistory.keys());
+    if (labels.length === 0) {
+      setExpandedHistoryLabels([]);
+      return;
+    }
+    const todayLabel = journeyDateLabel(new Date());
+    const defaultLabel = labels.includes(todayLabel) ? todayLabel : labels[0]!;
+    setExpandedHistoryLabels((prev) => {
+      if (prev.length > 0 && prev.some((l) => labels.includes(l))) {
+        return prev.filter((l) => labels.includes(l));
+      }
+      return [defaultLabel];
+    });
+  }, [groupedHistory]);
 
   const reportBranches = useMemo(() => {
     const set = new Set<WorkingBranch>();
@@ -923,21 +942,6 @@ export default function DriverDashboardPage() {
         </div>
       </Card>
 
-      <Button
-        type="button"
-        className={`fixed right-4 z-40 gap-2 shadow-lg ${
-          active ? "bottom-24" : "bottom-6"
-        }`}
-        onClick={() => {
-          const el = document.getElementById("driver-report-card");
-          if (!el) return;
-          el.scrollIntoView({ behavior: "smooth", block: "start" });
-        }}
-      >
-        <Download className="h-4 w-4" aria-hidden />
-        Report
-      </Button>
-
       {completed.length > 0 ? (
         <div className="space-y-4">
           <h2 className="flex items-center gap-2 text-lg font-bold text-foreground">
@@ -946,75 +950,95 @@ export default function DriverDashboardPage() {
           </h2>
           {Array.from(groupedHistory.entries()).map(([label, rows]) => (
             <div key={label}>
-              <p className="mb-2 text-xs font-bold uppercase tracking-wide text-muted">
-                {label}
-              </p>
-              <ul className="flex flex-col gap-2">
-                {rows.map((j) => (
-                  <li key={j.id}>
-                    <Card className="p-4 shadow-card-quiet!">
-                      {(() => {
-                        const startLabel = j.startTime.toLocaleString("en-GB", {
-                          weekday: "short",
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        });
-                        const sameDayAsStart =
-                          j.endTime != null &&
-                          j.endTime.toDateString() === j.startTime.toDateString();
-                        const endLabel = j.endTime
-                          ? sameDayAsStart
-                            ? j.endTime.toLocaleTimeString("en-GB", {
-                                hour: "2-digit",
-                                minute: "2-digit",
-                              })
-                            : j.endTime.toLocaleString("en-GB", {
-                                weekday: "short",
-                                hour: "2-digit",
-                                minute: "2-digit",
-                              })
-                          : "In progress";
-                        const durationLabel = formatDurationLabel(j.durationSeconds);
-                        const isLateEnded =
-                          !j.wasCancelled &&
-                          j.durationSeconds != null &&
-                          j.durationSeconds >= LATE_END_THRESHOLD_SECONDS;
-                        const isVeryLateEnded =
-                          !j.wasCancelled &&
-                          j.durationSeconds != null &&
-                          j.durationSeconds >= VERY_LATE_END_THRESHOLD_SECONDS;
-                        return (
-                          <>
-                            <p className="flex items-center gap-2 font-semibold text-foreground">
-                              <span>
-                                {j.vehicleRegistration} ·{" "}
-                                {j.wasCancelled ? (
-                                  <span className="text-danger">Cancelled</span>
-                                ) : (
-                                  "Complete"
-                                )}
-                              </span>
-                              {isLateEnded ? (
-                                <span className="rounded-full border border-[#8f7a3a]/40 bg-[#8f7a3a]/15 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-[#e9d89f]">
-                                  {isVeryLateEnded ? "Ended very late" : "Ended late"}
+              <button
+                type="button"
+                className="mb-2 inline-flex w-full items-center justify-between rounded-xl border border-border/70 bg-surface/50 px-3 py-2 text-left text-xs font-bold uppercase tracking-wide text-muted transition-colors hover:bg-muted-bg/35"
+                onClick={() =>
+                  setExpandedHistoryLabels((prev) =>
+                    prev.includes(label)
+                      ? prev.filter((l) => l !== label)
+                      : [...prev, label],
+                  )
+                }
+                aria-expanded={expandedHistoryLabels.includes(label)}
+              >
+                <span>
+                  {label} · {rows.length}
+                </span>
+                {expandedHistoryLabels.includes(label) ? (
+                  <ChevronDown className="h-4 w-4" aria-hidden />
+                ) : (
+                  <ChevronRight className="h-4 w-4" aria-hidden />
+                )}
+              </button>
+              {expandedHistoryLabels.includes(label) ? (
+                <ul className="flex flex-col gap-2">
+                  {rows.map((j) => (
+                    <li key={j.id}>
+                      <Card className="p-4 shadow-card-quiet!">
+                        {(() => {
+                          const startLabel = j.startTime.toLocaleString("en-GB", {
+                            weekday: "short",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          });
+                          const sameDayAsStart =
+                            j.endTime != null &&
+                            j.endTime.toDateString() === j.startTime.toDateString();
+                          const endLabel = j.endTime
+                            ? sameDayAsStart
+                              ? j.endTime.toLocaleTimeString("en-GB", {
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                })
+                              : j.endTime.toLocaleString("en-GB", {
+                                  weekday: "short",
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                })
+                            : "In progress";
+                          const durationLabel = formatDurationLabel(j.durationSeconds);
+                          const isLateEnded =
+                            !j.wasCancelled &&
+                            j.durationSeconds != null &&
+                            j.durationSeconds >= LATE_END_THRESHOLD_SECONDS;
+                          const isVeryLateEnded =
+                            !j.wasCancelled &&
+                            j.durationSeconds != null &&
+                            j.durationSeconds >= VERY_LATE_END_THRESHOLD_SECONDS;
+                          return (
+                            <>
+                              <p className="flex items-center gap-2 font-semibold text-foreground">
+                                <span>
+                                  {j.vehicleRegistration} ·{" "}
+                                  {j.wasCancelled ? (
+                                    <span className="text-danger">Cancelled</span>
+                                  ) : (
+                                    "Complete"
+                                  )}
                                 </span>
-                              ) : null}
-                            </p>
-                            <p className="text-sm text-muted">
-                              {startLabel} - {endLabel}
-                              {durationLabel ? ` · ${durationLabel}` : ""}
-                            </p>
-                            <p className="text-sm text-muted">
-                              From {j.startOriginLabel ?? j.homeBranch} · To{" "}
-                              {j.destinationPostcode ?? "Not set"}
-                            </p>
-                          </>
-                        );
-                      })()}
-                    </Card>
-                  </li>
-                ))}
-              </ul>
+                                {isLateEnded ? (
+                                  <span className="rounded-full border border-[#8f7a3a]/40 bg-[#8f7a3a]/15 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-[#e9d89f]">
+                                    {isVeryLateEnded ? "Ended very late" : "Ended late"}
+                                  </span>
+                                ) : null}
+                              </p>
+                              <p className="text-sm text-muted">
+                                {startLabel} - {endLabel}
+                                {durationLabel ? ` · ${durationLabel}` : ""}
+                              </p>
+                              <p className="text-sm text-muted">
+                                From {j.startOriginLabel ?? j.homeBranch} · To{" "}
+                                {j.destinationPostcode ?? "Not set"}
+                              </p>
+                            </>
+                          );
+                        })()}
+                      </Card>
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
             </div>
           ))}
         </div>
