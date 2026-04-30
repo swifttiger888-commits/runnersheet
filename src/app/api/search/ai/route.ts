@@ -29,6 +29,11 @@ type DeepSeekChatResponse = {
       content?: string;
     };
   }>;
+  error?: {
+    message?: string;
+    type?: string;
+    code?: string | number;
+  };
 };
 
 const TRANSLATOR_PROMPT = `You are "RunnerSheet Translator".
@@ -158,8 +163,23 @@ export async function POST(req: Request) {
 
     const payload = (await deepSeekRes.json().catch(() => ({}))) as DeepSeekChatResponse;
     if (!deepSeekRes.ok) {
+      const deepSeekMessage = payload.error?.message?.trim();
+      const deepSeekCode =
+        typeof payload.error?.code === "string" || typeof payload.error?.code === "number"
+          ? String(payload.error.code)
+          : null;
+      const suffix = deepSeekCode ? ` (code: ${deepSeekCode})` : "";
+      const userFacing = deepSeekMessage
+        ? `DeepSeek request failed: ${deepSeekMessage}${suffix}`
+        : `DeepSeek request failed with status ${deepSeekRes.status}.`;
+      console.error("[search/ai] deepseek non-2xx", {
+        status: deepSeekRes.status,
+        model,
+        endpoint,
+        deepSeekError: payload.error ?? null,
+      });
       return NextResponse.json(
-        { error: "DeepSeek request failed.", details: payload },
+        { error: userFacing, details: payload },
         { status: deepSeekRes.status },
       );
     }
@@ -168,7 +188,12 @@ export async function POST(req: Request) {
     const parsed = JSON.parse(content) as unknown;
     const intent = normalizeIntent(parsed);
     return NextResponse.json({ intent, model });
-  } catch {
+  } catch (err) {
+    console.error("[search/ai] deepseek unreachable", {
+      model,
+      endpoint,
+      error: err instanceof Error ? err.message : String(err),
+    });
     return NextResponse.json(
       { error: "Could not reach DeepSeek right now." },
       { status: 502 },
