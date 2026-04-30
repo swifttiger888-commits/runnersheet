@@ -13,6 +13,8 @@ type AiJourneyFilters = {
   vehicleMake?: string;
   vehicleModel?: string;
   vehicleColor?: string;
+  dateFrom?: string;
+  dateTo?: string;
 };
 
 type AiJourneyIntent = {
@@ -51,7 +53,9 @@ Schema:
     "journeyType"?: "Delivery" | "Collection" | "Runner",
     "vehicleMake"?: string,
     "vehicleModel"?: string,
-    "vehicleColor"?: string
+    "vehicleColor"?: string,
+    "dateFrom"?: string,
+    "dateTo"?: string
   },
   "needsDisambiguation": boolean,
   "confidence": number,
@@ -95,6 +99,15 @@ function normalizeIntent(input: unknown): AiJourneyIntent {
   if (vehicleModel) filters.vehicleModel = vehicleModel;
   const vehicleColor = read("vehicleColor");
   if (vehicleColor) filters.vehicleColor = vehicleColor;
+  const dateFrom = read("dateFrom");
+  if (dateFrom && /^\d{4}-\d{2}-\d{2}$/.test(dateFrom)) filters.dateFrom = dateFrom;
+  const dateTo = read("dateTo");
+  if (dateTo && /^\d{4}-\d{2}-\d{2}$/.test(dateTo)) filters.dateTo = dateTo;
+  if (filters.dateFrom && filters.dateTo && filters.dateFrom > filters.dateTo) {
+    const tmp = filters.dateFrom;
+    filters.dateFrom = filters.dateTo;
+    filters.dateTo = tmp;
+  }
 
   const confidenceRaw = Number(raw.confidence);
   const confidence = Number.isFinite(confidenceRaw)

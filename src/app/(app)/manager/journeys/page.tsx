@@ -30,6 +30,8 @@ type AiFilters = {
   vehicleMake?: string;
   vehicleModel?: string;
   vehicleColor?: string;
+  dateFrom?: string;
+  dateTo?: string;
 };
 
 type AiIntent = {
@@ -150,11 +152,68 @@ function buildActiveFilterChips(
   if (filters.driverId?.trim()) {
     chips.push({ key: "emp", label: `ID ${filters.driverId.trim()}` });
   }
+  if (filters.dateFrom?.trim() || filters.dateTo?.trim()) {
+    const from = filters.dateFrom?.trim() || "…";
+    const to = filters.dateTo?.trim() || "…";
+    chips.push({ key: "date", label: `Dates ${from} to ${to}` });
+  }
   for (const name of localDriverNames) {
     const n = name.trim();
     if (n) chips.push({ key: `drv-${n}`, label: `Driver contains “${n}” (local)` });
   }
   return chips;
+}
+
+function isoDateOnly(input: Date): string {
+  const y = input.getFullYear();
+  const m = `${input.getMonth() + 1}`.padStart(2, "0");
+  const d = `${input.getDate()}`.padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
+function parseRelativeDateRange(text: string): { dateFrom?: string; dateTo?: string } {
+  const q = text.trim().toLowerCase();
+  if (!q) return {};
+  const now = new Date();
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const endOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+
+  if (q.includes("today")) {
+    return { dateFrom: isoDateOnly(startOfToday), dateTo: isoDateOnly(endOfToday) };
+  }
+  if (q.includes("yesterday")) {
+    const d = new Date(startOfToday);
+    d.setDate(d.getDate() - 1);
+    return { dateFrom: isoDateOnly(d), dateTo: isoDateOnly(d) };
+  }
+  if (q.includes("last week")) {
+    const day = startOfToday.getDay();
+    const mondayOffset = (day + 6) % 7;
+    const thisWeekStart = new Date(startOfToday);
+    thisWeekStart.setDate(thisWeekStart.getDate() - mondayOffset);
+    const lastWeekStart = new Date(thisWeekStart);
+    lastWeekStart.setDate(lastWeekStart.getDate() - 7);
+    const lastWeekEnd = new Date(thisWeekStart);
+    lastWeekEnd.setDate(lastWeekEnd.getDate() - 1);
+    return { dateFrom: isoDateOnly(lastWeekStart), dateTo: isoDateOnly(lastWeekEnd) };
+  }
+  if (q.includes("this week")) {
+    const day = startOfToday.getDay();
+    const mondayOffset = (day + 6) % 7;
+    const weekStart = new Date(startOfToday);
+    weekStart.setDate(weekStart.getDate() - mondayOffset);
+    return { dateFrom: isoDateOnly(weekStart), dateTo: isoDateOnly(endOfToday) };
+  }
+  if (q.includes("last month")) {
+    const firstOfThisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const firstOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const endOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0);
+    return {
+      dateFrom: isoDateOnly(firstOfLastMonth),
+      dateTo: isoDateOnly(endOfLastMonth),
+    };
+  }
+  return {};
 }
 
 export default function ManagerAllJourneysPage() {
@@ -239,14 +298,14 @@ export default function ManagerAllJourneysPage() {
   const runFirestoreMagicSearch = useCallback(async (
     filters: AiFilters,
     localMatches: LocalSensitiveMatches,
-  ) => {
+  ): Promise<number> => {
     const clients = await ensureFirebaseClients();
     if (!clients) {
       setAiRows(localFiltered);
-      return;
+      return localFiltered.length;
     }
     const fs = await import("firebase/firestore");
-    const { collection, getDocs, limit, orderBy, query, where } = fs;
+    const { Timestamp, collection, getDocs, limit, orderBy, query, where } = fs;
     const constraints: Array<ReturnType<typeof where> | ReturnType<typeof orderBy> | ReturnType<typeof limit>> =
       [orderBy("startTime", "desc"), limit(200)];
 
@@ -260,6 +319,18 @@ export default function ManagerAllJourneysPage() {
     if (filters.status) constraints.push(where("status", "==", filters.status));
     if (filters.journeyType) {
       constraints.push(where("journeyType", "==", filters.journeyType));
+    }
+    if (filters.dateFrom) {
+      const from = new Date(`${filters.dateFrom}T00:00:00`);
+      if (!Number.isNaN(from.getTime())) {
+        constraints.push(where("startTime", ">=", Timestamp.fromDate(from)));
+      }
+    }
+    if (filters.dateTo) {
+      const to = new Date(`${filters.dateTo}T23:59:59.999`);
+      if (!Number.isNaN(to.getTime())) {
+        constraints.push(where("startTime", "<=", Timestamp.fromDate(to)));
+      }
     }
 
     const snap = await getDocs(query(collection(clients.db, "journeys"), ...constraints));
@@ -313,6 +384,7 @@ export default function ManagerAllJourneysPage() {
       Boolean(filters.vehicleMake || filters.vehicleModel || filters.vehicleColor) &&
       regs.length > 1;
     setDidYouMeanRegs(ambiguousVehiclePrompt ? regs.slice(0, 6) : []);
+    return rows.length;
   }, [localFiltered]);
 
   useEffect(() => {
@@ -349,9 +421,16 @@ export default function ManagerAllJourneysPage() {
             setActiveFilterMeta(null);
             return;
           }
-          setAiIntent(data.intent);
+          const dateHints = parseRelativeDateRange(text);
+          const mergedFilters: AiFilters = {
+            ...data.intent.filters,
+            dateFrom: data.intent.filters.dateFrom ?? dateHints.dateFrom,
+            dateTo: data.intent.filters.dateTo ?? dateHints.dateTo,
+          };
+          const mergedIntent: AiIntent = { ...data.intent, filters: mergedFilters };
+          setAiIntent(mergedIntent);
           setActiveFilterMeta({
-            filters: data.intent.filters,
+            filters: mergedFilters,
             localDriverNames: localMatches.matchedDriverNames,
           });
           if (!usesFirebaseAuth) {
@@ -359,7 +438,10 @@ export default function ManagerAllJourneysPage() {
             setDidYouMeanRegs([]);
             return;
           }
-          await runFirestoreMagicSearch(data.intent.filters, localMatches);
+          const strictCount = await runFirestoreMagicSearch(mergedFilters, localMatches);
+          if (strictCount === 0 && mergedIntent.confidence < 0.62) {
+            setAiRows(localFiltered);
+          }
         } catch {
           setAiError("Could not run Magic Search right now.");
           setAiRows(null);
@@ -580,9 +662,16 @@ export default function ManagerAllJourneysPage() {
                       setActiveFilterMeta(null);
                       return;
                     }
-                    setAiIntent(data.intent);
+                    const dateHints = parseRelativeDateRange(t);
+                    const mergedFilters: AiFilters = {
+                      ...data.intent.filters,
+                      dateFrom: data.intent.filters.dateFrom ?? dateHints.dateFrom,
+                      dateTo: data.intent.filters.dateTo ?? dateHints.dateTo,
+                    };
+                    const mergedIntent: AiIntent = { ...data.intent, filters: mergedFilters };
+                    setAiIntent(mergedIntent);
                     setActiveFilterMeta({
-                      filters: data.intent.filters,
+                      filters: mergedFilters,
                       localDriverNames: localMatches.matchedDriverNames,
                     });
                     if (!usesFirebaseAuth) {
@@ -590,7 +679,10 @@ export default function ManagerAllJourneysPage() {
                       setDidYouMeanRegs([]);
                       return;
                     }
-                    await runFirestoreMagicSearch(data.intent.filters, localMatches);
+                    const strictCount = await runFirestoreMagicSearch(mergedFilters, localMatches);
+                    if (strictCount === 0 && mergedIntent.confidence < 0.62) {
+                      setAiRows(filterManagerJourneysLocal(journeys, t));
+                    }
                   } catch {
                     setAiError("Could not run Magic Search right now.");
                     setActiveFilterMeta(null);
