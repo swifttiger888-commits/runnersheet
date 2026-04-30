@@ -19,7 +19,7 @@ const mono = JetBrains_Mono({
 
 const siteUrl = getSiteUrl();
 const defaultDescription =
-  "RunnerSheet — free journeys and reports for Arnold Clark drivers and managers. Independent app.";
+  "Fewer lost journeys, clearer handovers: RunnerSheet is the digital runner sheet for drivers and managers on phone, tablet, and desktop.";
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
@@ -30,6 +30,8 @@ export const metadata: Metadata = {
   description: defaultDescription,
   applicationName: "RunnerSheet",
   keywords: [
+    "RunnerSheet",
+    "runner sheet",
     "fleet",
     "journeys",
     "drivers",

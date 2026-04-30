@@ -25,7 +25,8 @@ export default function Home() {
         </h1>
         <p className="max-w-prose text-base leading-relaxed text-muted">
           For <strong className="font-semibold text-foreground">drivers</strong>
-          , RunnerSheet records jobs and active routes. For{" "}
+          , RunnerSheet records jobs and active routes. It is your digital
+          runner sheet for day-to-day branch work. For{" "}
           <strong className="font-semibold text-foreground">managers</strong>, it
           surfaces alerts, branch views, AI-assisted search, and PDF reports -
           all in the browser on phones, tablets, and desktops.

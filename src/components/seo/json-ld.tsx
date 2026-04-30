@@ -1,7 +1,7 @@
 import { getSiteUrl } from "@/lib/site";
 
 const DESC =
-  "Free journeys and reports for Arnold Clark drivers and managers. Independent app.";
+  "Fewer lost journeys, clearer handovers: RunnerSheet is the digital runner sheet for drivers and managers on phone, tablet, and desktop.";
 
 /** Basic WebApplication schema for rich results eligibility. */
 export function JsonLdWebApp() {
@@ -10,6 +10,7 @@ export function JsonLdWebApp() {
     "@context": "https://schema.org",
     "@type": "WebApplication",
     name: "RunnerSheet",
+    alternateName: "Runner sheet",
     description: DESC,
     url,
     image: [`${url}/og.png`, `${url}/icons/icon-512.png`],
