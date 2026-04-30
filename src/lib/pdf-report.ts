@@ -62,7 +62,7 @@ export async function buildDriverJourneyPdf(params: {
   const rowStep = 16;
   const bottomY = 52;
 
-  const columns = [
+  const baseColumns = [
     { title: "Date", width: 68 },
     { title: "Start", width: 44 },
     { title: "End", width: 44 },
@@ -72,7 +72,27 @@ export async function buildDriverJourneyPdf(params: {
     { title: "From", width: 96 },
     { title: "To", width: 96 },
     { title: "Status", width: 45 },
-  ] as const;
+  ];
+
+  const availableTableWidth = pageWidth - left * 2;
+  const baseWidthTotal = baseColumns.reduce((sum, c) => sum + c.width, 0);
+  const widthScale = baseWidthTotal > availableTableWidth ? availableTableWidth / baseWidthTotal : 1;
+  const columns = baseColumns.map((c) => ({
+    title: c.title,
+    width: Number((c.width * widthScale).toFixed(2)),
+  }));
+  if (columns.length > 0) {
+    const usedExceptLast = columns
+      .slice(0, -1)
+      .reduce((sum, c) => sum + c.width, 0);
+    columns[columns.length - 1]!.width = Number(
+      (availableTableWidth - usedExceptLast).toFixed(2),
+    );
+  }
+
+  const rowCharCaps = columns.map((c) =>
+    Math.max(4, Math.floor((c.width - 4) / 4.3)),
+  );
 
   const drawPageHeader = (page: ReturnType<typeof pdf.addPage>) => {
     let y = topY;
@@ -133,15 +153,15 @@ export async function buildDriverJourneyPdf(params: {
       y = tableStartY;
     }
     const row = [
-      clampCell(formatDateShort(j.endTime!), 10),
-      clampCell(formatTimeHm(j.startTime), 5),
-      clampCell(formatTimeHm(j.endTime!), 5),
-      clampCell(formatDuration(j.durationSeconds), 8),
-      clampCell(j.vehicleRegistration || "-", 10),
-      clampCell(j.journeyType, 10),
-      clampCell(j.startOriginLabel ?? j.homeBranch ?? "-", 18),
-      clampCell(j.destinationPostcode ?? "Not set", 18),
-      clampCell(j.wasCancelled ? "Cancelled" : "Complete", 10),
+      clampCell(formatDateShort(j.endTime!), rowCharCaps[0]!),
+      clampCell(formatTimeHm(j.startTime), rowCharCaps[1]!),
+      clampCell(formatTimeHm(j.endTime!), rowCharCaps[2]!),
+      clampCell(formatDuration(j.durationSeconds), rowCharCaps[3]!),
+      clampCell(j.vehicleRegistration || "-", rowCharCaps[4]!),
+      clampCell(j.journeyType, rowCharCaps[5]!),
+      clampCell(j.startOriginLabel ?? j.homeBranch ?? "-", rowCharCaps[6]!),
+      clampCell(j.destinationPostcode ?? "Not set", rowCharCaps[7]!),
+      clampCell(j.wasCancelled ? "Cancelled" : "Complete", rowCharCaps[8]!),
     ];
 
     let x = left;
