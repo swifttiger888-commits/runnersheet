@@ -46,6 +46,30 @@ type LocalSensitiveMatches = {
   matchedDriverIds: string[];
 };
 
+async function readMagicSearchResponse(res: Response): Promise<{
+  intent?: AiIntent;
+  error?: string;
+}> {
+  const raw = await res.text().catch(() => "");
+  if (!raw.trim()) return {};
+  try {
+    return JSON.parse(raw) as { intent?: AiIntent; error?: string };
+  } catch {
+    // Some upstream/runtime failures can return plain-text bodies.
+    return { error: raw.slice(0, 240).trim() };
+  }
+}
+
+function formatMagicSearchError(
+  res: Response,
+  payload: { intent?: AiIntent; error?: string },
+): string {
+  const detail = payload.error?.trim();
+  if (detail) return detail;
+  const statusLabel = res.status ? `HTTP ${res.status}` : "HTTP error";
+  return `Magic Search failed (${statusLabel}).`;
+}
+
 type SpeechRecognitionLike = {
   lang: string;
   interimResults: boolean;
@@ -301,12 +325,9 @@ export default function ManagerAllJourneysPage() {
               text: localMatches.redactedText,
             }),
           });
-          const data = (await res.json().catch(() => ({}))) as {
-            intent?: AiIntent;
-            error?: string;
-          };
+          const data = await readMagicSearchResponse(res);
           if (!res.ok || !data.intent) {
-            setAiError(data.error || "Magic Search failed.");
+            setAiError(formatMagicSearchError(res, data));
             setAiRows(null);
             setAiIntent(null);
             setDidYouMeanRegs([]);
@@ -536,12 +557,9 @@ export default function ManagerAllJourneysPage() {
                         text: localMatches.redactedText,
                       }),
                     });
-                    const data = (await res.json().catch(() => ({}))) as {
-                      intent?: AiIntent;
-                      error?: string;
-                    };
+                    const data = await readMagicSearchResponse(res);
                     if (!res.ok || !data.intent) {
-                      setAiError(data.error || "Magic Search failed.");
+                      setAiError(formatMagicSearchError(res, data));
                       setAiRows(null);
                       setAiIntent(null);
                       setActiveFilterMeta(null);
