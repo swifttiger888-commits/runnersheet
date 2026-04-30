@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
+  ChevronDown,
+  ChevronRight,
   Loader2,
   Mic,
   MicOff,
@@ -19,6 +21,7 @@ import { useAuth } from "@/context/auth-context";
 import { useJourneyData } from "@/context/journey-data-context";
 import { getAuthHeader } from "@/lib/client-auth";
 import { ensureFirebaseClients } from "@/lib/firebase";
+import { correctionReasonLabel } from "@/lib/journey-corrections";
 import { normalizeJourneyRecord } from "@/lib/normalize-records";
 import type { JourneyRecord } from "@/types/journey";
 type AiFilters = {
@@ -289,6 +292,32 @@ function mergeFilters(
   return { ...merged, ...parseFollowUpFlags(text) };
 }
 
+/** Manager list: approval + review flags (corrections, late entries, etc.). */
+function managerReviewBadge(j: JourneyRecord): {
+  label: string;
+  className: string;
+} | null {
+  if (j.isApproved === true) {
+    return {
+      label: "Approved",
+      className: "border-emerald-600/40 bg-emerald-600/12 text-emerald-100",
+    };
+  }
+  if (j.isApproved === false) {
+    return {
+      label: "Rejected",
+      className: "border-danger/45 bg-danger/10 text-danger",
+    };
+  }
+  if (j.needsReview) {
+    return {
+      label: "Needs review",
+      className: "border-[#8f7a3a]/40 bg-[#8f7a3a]/15 text-[#e9d89f]",
+    };
+  }
+  return null;
+}
+
 export default function ManagerAllJourneysPage() {
   const { usesFirebaseAuth } = useAuth();
   const { journeys, loading } = useJourneyData();
@@ -301,6 +330,7 @@ export default function ManagerAllJourneysPage() {
   const [voiceSupported, setVoiceSupported] = useState(false);
   const [voiceListening, setVoiceListening] = useState(false);
   const [voiceError, setVoiceError] = useState<string | null>(null);
+  const [auditOpenJourneyId, setAuditOpenJourneyId] = useState<string | null>(null);
   /** Last successful Magic Search — drives filter chips when Firestore path ran */
   const [activeFilterMeta, setActiveFilterMeta] = useState<{
     filters: AiFilters;
@@ -886,6 +916,22 @@ export default function ManagerAllJourneysPage() {
                         Cancelled
                       </span>
                     ) : null}
+                    {(j.correctionLog?.length ?? 0) > 0 ? (
+                      <span className="ml-2 text-xs font-semibold text-[#d7c286]">
+                        Edited
+                      </span>
+                    ) : null}
+                    {(() => {
+                      const review = managerReviewBadge(j);
+                      if (!review) return null;
+                      return (
+                        <span
+                          className={`ml-2 inline-block rounded-full border px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide ${review.className}`}
+                        >
+                          {review.label}
+                        </span>
+                      );
+                    })()}
                   </p>
                   <p className="text-sm text-muted">
                     {j.driverName} · {j.homeBranch} · {j.status}
@@ -896,6 +942,87 @@ export default function ManagerAllJourneysPage() {
                       ? ` → ${j.endTime.toLocaleString("en-GB")}`
                       : ""}
                   </p>
+                  {(j.correctionLog?.length ?? 0) > 0 ? (
+                    <div className="mt-3 border-t border-border/60 pt-3">
+                      <button
+                        type="button"
+                        className="inline-flex w-full items-center justify-between rounded-lg border border-border/70 bg-surface/50 px-3 py-2 text-left text-xs font-semibold text-foreground transition-colors hover:bg-muted-bg/30"
+                        onClick={() =>
+                          setAuditOpenJourneyId((id) =>
+                            id === j.id ? null : j.id,
+                          )
+                        }
+                        aria-expanded={auditOpenJourneyId === j.id}
+                      >
+                        <span>
+                          Correction audit · {j.correctionLog.length}{" "}
+                          {j.correctionLog.length === 1 ? "entry" : "entries"}
+                        </span>
+                        {auditOpenJourneyId === j.id ? (
+                          <ChevronDown className="h-4 w-4 shrink-0" aria-hidden />
+                        ) : (
+                          <ChevronRight className="h-4 w-4 shrink-0" aria-hidden />
+                        )}
+                      </button>
+                      {auditOpenJourneyId === j.id ? (
+                        <ol className="mt-3 list-decimal space-y-3 pl-5 text-xs text-foreground">
+                          {j.correctionLog.map((e, i) => (
+                            <li key={i} className="pl-0.5">
+                              <p className="font-medium text-foreground">
+                                {e.editedAt.toLocaleString("en-GB")}
+                              </p>
+                              <p className="mt-1 text-muted">
+                                <span className="text-foreground/90">By</span>{" "}
+                                employee {e.editedByDriverId}
+                                {e.editedByUid ? (
+                                  <>
+                                    {" "}
+                                    <span className="font-mono text-[11px] text-muted">
+                                      (
+                                      {e.editedByUid.length > 14
+                                        ? `${e.editedByUid.slice(0, 8)}…`
+                                        : e.editedByUid}
+                                      )
+                                    </span>
+                                  </>
+                                ) : null}
+                              </p>
+                              <p className="mt-1">
+                                <span className="text-muted">Reason:</span>{" "}
+                                {correctionReasonLabel(e.reason)}
+                              </p>
+                              {e.note ? (
+                                <p className="mt-1.5 max-h-40 overflow-y-auto break-words rounded-md border border-border/50 bg-surface/40 px-2 py-1.5 text-foreground/95 whitespace-pre-wrap">
+                                  {e.note}
+                                </p>
+                              ) : null}
+                              <div className="mt-1.5 grid gap-1 rounded-md bg-muted-bg/25 px-2 py-1.5 font-mono text-[11px] leading-snug text-muted">
+                                <p>
+                                  <span className="text-foreground/80">Start</span>{" "}
+                                  {e.previousStartTime.toLocaleString("en-GB")} →{" "}
+                                  <span className="text-foreground">
+                                    {e.newStartTime.toLocaleString("en-GB")}
+                                  </span>
+                                </p>
+                                <p>
+                                  <span className="text-foreground/80">End</span>{" "}
+                                  {e.previousEndTime
+                                    ? e.previousEndTime.toLocaleString("en-GB")
+                                    : "—"}{" "}
+                                  →{" "}
+                                  <span className="text-foreground">
+                                    {e.newEndTime
+                                      ? e.newEndTime.toLocaleString("en-GB")
+                                      : "—"}
+                                  </span>
+                                </p>
+                              </div>
+                            </li>
+                          ))}
+                        </ol>
+                      ) : null}
+                    </div>
+                  ) : null}
                 </Card>
               </li>
             ))}

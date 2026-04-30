@@ -2,6 +2,23 @@ export type JourneyType = "Delivery" | "Collection" | "Runner";
 
 export type JourneyStatus = "active" | "completed";
 export type JourneyStartOriginType = "branch" | "gps";
+export type JourneyCorrectionReason =
+  | "forgot_to_end"
+  | "forgot_to_start"
+  | "app_issue"
+  | "other";
+
+export type JourneyCorrectionEntry = {
+  editedAt: Date;
+  editedByUid: string;
+  editedByDriverId: string;
+  reason: JourneyCorrectionReason;
+  note: string | null;
+  previousStartTime: Date;
+  newStartTime: Date;
+  previousEndTime: Date | null;
+  newEndTime: Date | null;
+};
 
 /** Normalized journey for UI + Firestore mapping */
 export type JourneyRecord = {
@@ -30,4 +47,5 @@ export type JourneyRecord = {
   certifiedVehicleMake?: string | null;
   certifiedVehicleModel?: string | null;
   certifiedVehicleColor?: string | null;
+  correctionLog: JourneyCorrectionEntry[];
 };

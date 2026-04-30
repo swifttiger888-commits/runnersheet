@@ -162,7 +162,14 @@ export async function buildDriverJourneyPdf(params: {
       clampCell(j.journeyType, rowCharCaps[5]!),
       clampCell(j.startOriginLabel ?? j.homeBranch ?? "-", rowCharCaps[6]!),
       clampCell(j.destinationPostcode ?? "Not set", rowCharCaps[7]!),
-      clampCell(j.wasCancelled ? "Cancelled" : "Complete", rowCharCaps[8]!),
+      clampCell(
+        j.wasCancelled
+          ? "Cancelled"
+          : (j.correctionLog?.length ?? 0) > 0
+            ? "Edited"
+            : "Complete",
+        rowCharCaps[8]!,
+      ),
     ];
 
     let x = left;

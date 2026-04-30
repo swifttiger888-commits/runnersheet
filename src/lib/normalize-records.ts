@@ -1,5 +1,8 @@
 import type { AlertRecord, AlertType } from "@/types/alert";
+import { clampCorrectionNote } from "@/lib/journey-corrections";
 import type {
+  JourneyCorrectionEntry,
+  JourneyCorrectionReason,
   JourneyRecord,
   JourneyStartOriginType,
   JourneyStatus,
@@ -78,6 +81,36 @@ export function coerceDateOrNull(value: unknown): Date | null {
   return null;
 }
 
+function parseCorrectionReason(v: unknown): JourneyCorrectionReason {
+  if (v === "forgot_to_end") return v;
+  if (v === "forgot_to_start") return v;
+  if (v === "app_issue") return v;
+  return "other";
+}
+
+function normalizeCorrectionLog(value: unknown): JourneyCorrectionEntry[] {
+  if (!Array.isArray(value)) return [];
+  const out: JourneyCorrectionEntry[] = [];
+  for (const item of value) {
+    if (typeof item !== "object" || item === null) continue;
+    const row = item as Record<string, unknown>;
+    out.push({
+      editedAt: coerceDate(row.editedAt),
+      editedByUid: String(row.editedByUid ?? ""),
+      editedByDriverId: String(row.editedByDriverId ?? ""),
+      reason: parseCorrectionReason(row.reason),
+      note: clampCorrectionNote(
+        row.note === null || row.note === undefined ? null : String(row.note),
+      ),
+      previousStartTime: coerceDate(row.previousStartTime),
+      newStartTime: coerceDate(row.newStartTime),
+      previousEndTime: coerceDateOrNull(row.previousEndTime),
+      newEndTime: coerceDateOrNull(row.newEndTime),
+    });
+  }
+  return out;
+}
+
 /**
  * Single source of truth for journey shape (Firestore docs + demo JSON).
  */
@@ -141,6 +174,7 @@ export function normalizeJourneyRecord(
       data.certifiedVehicleColor === undefined
         ? null
         : String(data.certifiedVehicleColor),
+    correctionLog: normalizeCorrectionLog(data.correctionLog),
   };
 }
 

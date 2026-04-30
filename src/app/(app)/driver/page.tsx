@@ -46,6 +46,11 @@ import { getAuthHeader } from "@/lib/client-auth";
 import { journeyDateLabel } from "@/lib/date-labels";
 import { ensureFirebaseClients } from "@/lib/firebase";
 import { gpsCoordsStartLabel } from "@/lib/gps-start-label";
+import {
+  canDriverCorrectJourneyUntil5pm,
+  JOURNEY_CORRECTION_REASON_OPTIONS,
+  JOURNEY_CORRECTION_NOTE_MAX_CHARS,
+} from "@/lib/journey-corrections";
 import { buildDriverJourneyPdf } from "@/lib/pdf-report";
 import { openPdfPreview } from "@/lib/pdf-preview";
 import {
@@ -53,7 +58,7 @@ import {
   formatUkVehicleRegistration,
   sanitizeAlphanumericUpper,
 } from "@/lib/uk-format";
-import type { JourneyRecord } from "@/types/journey";
+import type { JourneyCorrectionReason, JourneyRecord } from "@/types/journey";
 type VehicleLookupState = "idle" | "loading" | "found" | "not_found" | "error";
 
 function formatDurationLabel(durationSeconds: number | null | undefined) {
@@ -64,6 +69,15 @@ function formatDurationLabel(durationSeconds: number | null | undefined) {
   if (hours <= 0) return `${minutes} min`;
   if (minutes === 0) return `${hours}h`;
   return `${hours}h ${minutes}m`;
+}
+
+function toDateTimeLocalInputValue(value: Date): string {
+  const yyyy = value.getFullYear();
+  const mm = String(value.getMonth() + 1).padStart(2, "0");
+  const dd = String(value.getDate()).padStart(2, "0");
+  const hh = String(value.getHours()).padStart(2, "0");
+  const min = String(value.getMinutes()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd}T${hh}:${min}`;
 }
 
 // Typical runs are local; flag likely missed end-times quickly.
@@ -82,6 +96,7 @@ export default function DriverDashboardPage() {
     error,
     startJourney,
     endJourney,
+    correctJourney,
   } = useJourneyData();
 
   const [vehicleRegistration, setVehicleRegistration] = useState("");
@@ -106,6 +121,13 @@ export default function DriverDashboardPage() {
   const [reportToDate, setReportToDate] = useState(() =>
     new Date().toISOString().slice(0, 10),
   );
+  const [editingJourneyId, setEditingJourneyId] = useState<string | null>(null);
+  const [correctionStart, setCorrectionStart] = useState("");
+  const [correctionEnd, setCorrectionEnd] = useState("");
+  const [correctionReason, setCorrectionReason] =
+    useState<JourneyCorrectionReason>("forgot_to_end");
+  const [correctionNote, setCorrectionNote] = useState("");
+  const [correctionBusy, setCorrectionBusy] = useState(false);
   const hadPendingWritesRef = useRef(false);
 
   useEffect(() => {
@@ -256,6 +278,54 @@ export default function DriverDashboardPage() {
       return [defaultLabel];
     });
   }, [groupedHistory]);
+
+  const openCorrectionEditor = useCallback((journey: JourneyRecord) => {
+    if (!journey.endTime) return;
+    setEditingJourneyId(journey.id);
+    setCorrectionStart(toDateTimeLocalInputValue(journey.startTime));
+    setCorrectionEnd(toDateTimeLocalInputValue(journey.endTime));
+    setCorrectionReason("forgot_to_end");
+    setCorrectionNote("");
+  }, []);
+
+  const closeCorrectionEditor = useCallback(() => {
+    setEditingJourneyId(null);
+    setCorrectionNote("");
+  }, []);
+
+  const submitCorrection = useCallback(async () => {
+    if (!editingJourneyId) return;
+    const start = new Date(correctionStart);
+    const end = new Date(correctionEnd);
+    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+      setFormError("Please provide valid correction times.");
+      return;
+    }
+    try {
+      setCorrectionBusy(true);
+      setFormError(null);
+      await correctJourney({
+        journeyId: editingJourneyId,
+        startTime: start,
+        endTime: end,
+        reason: correctionReason,
+        note: correctionNote,
+      });
+      setEditingJourneyId(null);
+      setCorrectionNote("");
+    } catch (err) {
+      setFormError(err instanceof Error ? err.message : "Correction failed.");
+    } finally {
+      setCorrectionBusy(false);
+    }
+  }, [
+    editingJourneyId,
+    correctionStart,
+    correctionEnd,
+    correctionReason,
+    correctionNote,
+    correctJourney,
+  ]);
 
   const reportBranches = useMemo(() => {
     const set = new Set<WorkingBranch>();
@@ -1074,6 +1144,11 @@ export default function DriverDashboardPage() {
                                   {j.vehicleRegistration} ·{" "}
                                   {j.wasCancelled ? (
                                     <span className="text-danger">Cancelled</span>
+                                  ) : (j.correctionLog?.length ?? 0) > 0 ? (
+                                    <span>
+                                      Complete ·{" "}
+                                      <span className="text-[#d7c286]">Edited</span>
+                                    </span>
                                   ) : (
                                     "Complete"
                                   )}
@@ -1092,6 +1167,125 @@ export default function DriverDashboardPage() {
                                 From {j.startOriginLabel ?? j.homeBranch} · To{" "}
                                 {j.destinationPostcode ?? "Not set"}
                               </p>
+                              {(j.correctionLog?.length ?? 0) > 0 ? (
+                                <p className="text-xs text-muted">
+                                  Last corrected:{" "}
+                                  {j.correctionLog[j.correctionLog.length - 1]?.editedAt.toLocaleString(
+                                    "en-GB",
+                                  )}
+                                </p>
+                              ) : null}
+                              {!j.wasCancelled ? (
+                                <div className="mt-3 flex flex-wrap items-center gap-2">
+                                  {(() => {
+                                    const gate = canDriverCorrectJourneyUntil5pm(
+                                      j.startTime,
+                                      new Date(),
+                                    );
+                                    if (!gate.allowed) {
+                                      return (
+                                        <p className="text-xs text-muted">
+                                          Correction locked: {gate.reason}
+                                        </p>
+                                      );
+                                    }
+                                    return (
+                                      <Button
+                                        type="button"
+                                        size="sm"
+                                        variant="secondary"
+                                        onClick={() => openCorrectionEditor(j)}
+                                        disabled={correctionBusy}
+                                      >
+                                        Correct times
+                                      </Button>
+                                    );
+                                  })()}
+                                </div>
+                              ) : null}
+                              {editingJourneyId === j.id ? (
+                                <div className="mt-3 space-y-2 rounded-lg border border-border/70 bg-surface/60 p-3">
+                                  <p className="text-xs font-semibold uppercase tracking-wide text-muted">
+                                    Correction (allowed until 5:00 PM same day)
+                                  </p>
+                                  <div className="grid gap-2 sm:grid-cols-2">
+                                    <div className="space-y-1">
+                                      <Label htmlFor={`correct-start-${j.id}`}>Start time</Label>
+                                      <Input
+                                        id={`correct-start-${j.id}`}
+                                        type="datetime-local"
+                                        value={correctionStart}
+                                        onChange={(e) => setCorrectionStart(e.target.value)}
+                                      />
+                                    </div>
+                                    <div className="space-y-1">
+                                      <Label htmlFor={`correct-end-${j.id}`}>End time</Label>
+                                      <Input
+                                        id={`correct-end-${j.id}`}
+                                        type="datetime-local"
+                                        value={correctionEnd}
+                                        onChange={(e) => setCorrectionEnd(e.target.value)}
+                                      />
+                                    </div>
+                                  </div>
+                                  <div className="space-y-1">
+                                    <Label htmlFor={`correct-reason-${j.id}`}>Reason (required)</Label>
+                                    <select
+                                      id={`correct-reason-${j.id}`}
+                                      value={correctionReason}
+                                      onChange={(e) =>
+                                        setCorrectionReason(
+                                          e.target.value as JourneyCorrectionReason,
+                                        )
+                                      }
+                                      className="h-11 w-full rounded-xl border border-border bg-surface px-3 text-sm text-foreground"
+                                    >
+                                      {JOURNEY_CORRECTION_REASON_OPTIONS.map((option) => (
+                                        <option key={option.value} value={option.value}>
+                                          {option.label}
+                                        </option>
+                                      ))}
+                                    </select>
+                                  </div>
+                                  <div className="space-y-1">
+                                    <Label htmlFor={`correct-note-${j.id}`}>
+                                      Notes (optional, max{" "}
+                                      {JOURNEY_CORRECTION_NOTE_MAX_CHARS} characters)
+                                    </Label>
+                                    <textarea
+                                      id={`correct-note-${j.id}`}
+                                      rows={3}
+                                      maxLength={JOURNEY_CORRECTION_NOTE_MAX_CHARS}
+                                      value={correctionNote}
+                                      onChange={(e) => setCorrectionNote(e.target.value)}
+                                      placeholder="Short context for manager review (one or two sentences is enough)"
+                                      className="min-h-24 w-full resize-y rounded-xl border border-border/90 bg-background px-3.5 py-2.5 text-sm text-foreground shadow-inset-field outline-none transition-[box-shadow,border-color] duration-200 placeholder:text-muted focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/35 disabled:cursor-not-allowed disabled:opacity-60"
+                                    />
+                                    <p className="text-right text-xs text-muted">
+                                      {correctionNote.length} / {JOURNEY_CORRECTION_NOTE_MAX_CHARS}
+                                    </p>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <Button
+                                      type="button"
+                                      size="sm"
+                                      onClick={() => void submitCorrection()}
+                                      disabled={correctionBusy}
+                                    >
+                                      {correctionBusy ? "Saving..." : "Save correction"}
+                                    </Button>
+                                    <Button
+                                      type="button"
+                                      size="sm"
+                                      variant="ghost"
+                                      onClick={closeCorrectionEditor}
+                                      disabled={correctionBusy}
+                                    >
+                                      Cancel
+                                    </Button>
+                                  </div>
+                                </div>
+                              ) : null}
                             </>
                           );
                         })()}

@@ -17,10 +17,18 @@ import {
   parseAlertArrayFromSessionJson,
   parseJourneyArrayFromSessionJson,
 } from "@/lib/normalize-records";
+import {
+  canDriverCorrectJourneyUntil5pm,
+  clampCorrectionNote,
+} from "@/lib/journey-corrections";
 import { friendlyFirestoreError } from "@/lib/user-facing-errors";
 import { formatUkPostcode, formatUkVehicleRegistration } from "@/lib/uk-format";
 import type { AlertRecord } from "@/types/alert";
-import type { JourneyRecord, JourneyType } from "@/types/journey";
+import type {
+  JourneyCorrectionReason,
+  JourneyRecord,
+  JourneyType,
+} from "@/types/journey";
 import { useAuth } from "@/context/auth-context";
 
 const DEMO_J = "rs_demo_journeys_v1";
@@ -66,6 +74,13 @@ type JourneyDataContextValue = {
     endingMileage?: number,
     options?: { cancelled?: boolean; destinationPostcode?: string | null },
   ) => Promise<void>;
+  correctJourney: (input: {
+    journeyId: string;
+    startTime: Date;
+    endTime: Date;
+    reason: JourneyCorrectionReason;
+    note?: string;
+  }) => Promise<void>;
   resolveAlert: (alertId: string) => Promise<void>;
 };
 
@@ -299,6 +314,7 @@ export function JourneyDataProvider({ children }: { children: React.ReactNode })
         certifiedVehicleMake: input.certifiedVehicle?.make ?? null,
         certifiedVehicleModel: input.certifiedVehicle?.model ?? null,
         certifiedVehicleColor: input.certifiedVehicle?.color ?? null,
+        correctionLog: [],
       };
 
       if (canUseFirestore && user) {
@@ -342,6 +358,7 @@ export function JourneyDataProvider({ children }: { children: React.ReactNode })
           certifiedVehicleMake: input.certifiedVehicle?.make ?? null,
           certifiedVehicleModel: input.certifiedVehicle?.model ?? null,
           certifiedVehicleColor: input.certifiedVehicle?.color ?? null,
+          correctionLog: [],
         });
         return;
       }
@@ -409,6 +426,7 @@ export function JourneyDataProvider({ children }: { children: React.ReactNode })
           wasCancelled,
           milesTraveled: miles,
           durationSeconds: seconds,
+          correctionLog: j.correctionLog ?? [],
         };
         if (!wasCancelled) {
           const recent = list.filter(
@@ -442,6 +460,7 @@ export function JourneyDataProvider({ children }: { children: React.ReactNode })
         wasCancelled,
         milesTraveled: miles,
         durationSeconds: seconds,
+        correctionLog: prev[idx]?.correctionLog ?? [],
       };
       prev[idx] = completed;
       const existingAlerts = parseAlertArrayFromSessionJson(
@@ -468,6 +487,105 @@ export function JourneyDataProvider({ children }: { children: React.ReactNode })
       setAlerts([...al]);
     },
     [canUseFirestore, profile],
+  );
+
+  const correctJourney = useCallback(
+    async (input: {
+      journeyId: string;
+      startTime: Date;
+      endTime: Date;
+      reason: JourneyCorrectionReason;
+      note?: string;
+    }) => {
+      if (!profile) throw new Error("Profile not loaded.");
+      const list = journeysRef.current;
+      const row = list.find((x) => x.id === input.journeyId);
+      if (!row) throw new Error("Journey not found.");
+      if (row.userId !== (user?.uid ?? driverUid)) {
+        throw new Error("You can only correct your own journeys.");
+      }
+      if (row.status !== "completed" || !row.endTime) {
+        throw new Error("Only completed journeys can be corrected.");
+      }
+      const gate = canDriverCorrectJourneyUntil5pm(row.startTime, new Date());
+      if (!gate.allowed) throw new Error(gate.reason ?? "Correction window closed.");
+      if (input.endTime <= input.startTime) {
+        throw new Error("End time must be after start time.");
+      }
+
+      const updatedDuration = Math.max(
+        0,
+        Math.round((input.endTime.getTime() - input.startTime.getTime()) / 1000),
+      );
+      const note = clampCorrectionNote(input.note);
+      const editedAt = new Date();
+      const entry = {
+        editedAt,
+        editedByUid: user?.uid ?? driverUid,
+        editedByDriverId: profile.employeeId,
+        reason: input.reason,
+        note,
+        previousStartTime: row.startTime,
+        newStartTime: input.startTime,
+        previousEndTime: row.endTime,
+        newEndTime: input.endTime,
+      };
+
+      if (canUseFirestore) {
+        const clients = await ensureFirebaseClients();
+        if (!clients) throw new Error("Firebase not available.");
+        const { Timestamp, doc, getDoc, updateDoc } = await import("firebase/firestore");
+        const ref = doc(clients.db, "journeys", input.journeyId);
+        const snap = await getDoc(ref);
+        const existingLog = Array.isArray(snap.data()?.correctionLog)
+          ? (snap.data()?.correctionLog as Array<Record<string, unknown>>)
+          : [];
+        await updateDoc(ref, {
+          startTime: Timestamp.fromDate(input.startTime),
+          endTime: Timestamp.fromDate(input.endTime),
+          durationSeconds: updatedDuration,
+          needsReview: true,
+          isLateEntry: true,
+          isApproved: null,
+          correctionLog: [
+            ...existingLog,
+            {
+              editedAt: entry.editedAt.toISOString(),
+              editedByUid: entry.editedByUid,
+              editedByDriverId: entry.editedByDriverId,
+              reason: entry.reason,
+              note: entry.note,
+              previousStartTime: entry.previousStartTime.toISOString(),
+              newStartTime: entry.newStartTime.toISOString(),
+              previousEndTime: entry.previousEndTime?.toISOString() ?? null,
+              newEndTime: entry.newEndTime?.toISOString() ?? null,
+            },
+          ],
+        });
+        return;
+      }
+
+      const prev = parseJourneyArrayFromSessionJson(
+        sessionStorage.getItem(DEMO_J) ?? "[]",
+      );
+      const idx = prev.findIndex((x) => x.id === input.journeyId);
+      if (idx === -1) throw new Error("Journey not found.");
+      const existing = prev[idx]!;
+      prev[idx] = {
+        ...existing,
+        startTime: input.startTime,
+        endTime: input.endTime,
+        durationSeconds: updatedDuration,
+        needsReview: true,
+        isLateEntry: true,
+        isApproved: null,
+        correctionLog: [...(existing.correctionLog ?? []), entry],
+      };
+      const al = parseAlertArrayFromSessionJson(sessionStorage.getItem(DEMO_A) ?? "[]");
+      persistDemo(prev, al);
+      setJourneys([...prev]);
+    },
+    [canUseFirestore, profile, user?.uid, driverUid],
   );
 
   const resolveAlert = useCallback(
@@ -509,6 +627,7 @@ export function JourneyDataProvider({ children }: { children: React.ReactNode })
       error,
       startJourney,
       endJourney,
+      correctJourney,
       resolveAlert,
     }),
     [
@@ -519,6 +638,7 @@ export function JourneyDataProvider({ children }: { children: React.ReactNode })
       error,
       startJourney,
       endJourney,
+      correctJourney,
       resolveAlert,
     ],
   );
