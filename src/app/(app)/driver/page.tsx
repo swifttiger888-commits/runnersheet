@@ -1015,64 +1015,6 @@ export default function DriverDashboardPage() {
         </Card>
       ) : null}
 
-      <Card id="driver-report-card">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Download className="h-5 w-5 text-primary" aria-hidden />
-            My printable report (PDF)
-          </CardTitle>
-          <p className="text-sm text-muted">
-            Export your own journeys for hard-copy records.
-          </p>
-        </CardHeader>
-        <div className="grid gap-3 border-t border-border px-5 pb-5 pt-3 sm:grid-cols-2">
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="report-branch">Branch</Label>
-            <select
-              id="report-branch"
-              className="min-h-11 rounded-xl border border-border bg-background px-3 text-foreground shadow-inset-field"
-              value={reportBranch}
-              onChange={(e) => setReportBranch(e.target.value as WorkingBranch)}
-            >
-              {reportBranches.map((b) => (
-                <option key={b} value={b}>
-                  {b}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="report-from">From date</Label>
-            <Input
-              id="report-from"
-              type="date"
-              value={reportFromDate}
-              onChange={(e) => setReportFromDate(e.target.value)}
-            />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="report-to">To date</Label>
-            <Input
-              id="report-to"
-              type="date"
-              value={reportToDate}
-              onChange={(e) => setReportToDate(e.target.value)}
-            />
-          </div>
-          <div className="flex items-end">
-            <Button
-              type="button"
-              className="w-full gap-2"
-              onClick={() => void handleDownloadMyReport()}
-              disabled={reportBusy}
-            >
-              <Download className="h-4 w-4" aria-hidden />
-              {reportBusy ? "Generating PDF..." : "Preview / print my report"}
-            </Button>
-          </div>
-        </div>
-      </Card>
-
       {completed.length > 0 ? (
         <div className="space-y-4">
           <h2 className="flex items-center gap-2 text-lg font-bold text-foreground">
@@ -1301,6 +1243,68 @@ export default function DriverDashboardPage() {
           No completed jobs yet.
         </Card>
       ) : null}
+
+      <details
+        id="driver-report-card"
+        className="rounded-2xl border border-border/80 bg-surface/50 shadow-card-quiet"
+      >
+        <summary className="flex cursor-pointer list-none items-center gap-2 px-4 py-3.5 text-left text-sm font-semibold text-foreground transition-colors hover:bg-muted-bg/25 [&::-webkit-details-marker]:hidden">
+          <Download className="h-4 w-4 shrink-0 text-primary" aria-hidden />
+          <span>Printable report (PDF)</span>
+          <ChevronDown className="ml-auto h-4 w-4 shrink-0 text-muted" aria-hidden />
+        </summary>
+        <div className="border-t border-border px-4 pb-4 pt-1">
+          <p className="mb-3 text-sm text-muted">
+            Export your own journeys for hard-copy records.
+          </p>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="report-branch">Branch</Label>
+              <select
+                id="report-branch"
+                className="min-h-11 rounded-xl border border-border bg-background px-3 text-foreground shadow-inset-field"
+                value={reportBranch}
+                onChange={(e) => setReportBranch(e.target.value as WorkingBranch)}
+              >
+                {reportBranches.map((b) => (
+                  <option key={b} value={b}>
+                    {b}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="report-from">From date</Label>
+              <Input
+                id="report-from"
+                type="date"
+                value={reportFromDate}
+                onChange={(e) => setReportFromDate(e.target.value)}
+              />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="report-to">To date</Label>
+              <Input
+                id="report-to"
+                type="date"
+                value={reportToDate}
+                onChange={(e) => setReportToDate(e.target.value)}
+              />
+            </div>
+            <div className="flex items-end">
+              <Button
+                type="button"
+                className="w-full gap-2"
+                onClick={() => void handleDownloadMyReport()}
+                disabled={reportBusy}
+              >
+                <Download className="h-4 w-4" aria-hidden />
+                {reportBusy ? "Generating PDF..." : "Preview / print my report"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      </details>
 
       <p className="text-center text-sm text-muted">
         <Link
