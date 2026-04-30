@@ -41,7 +41,6 @@ import { useJourneyData } from "@/context/journey-data-context";
 import { useSessionBranch } from "@/context/session-branch-context";
 import { useHybridTripEta } from "@/hooks/use-hybrid-trip-eta";
 import { useRunningLabel } from "@/hooks/use-running-label";
-import { trackGa4Event } from "@/lib/analytics";
 import { getAuthHeader } from "@/lib/client-auth";
 import { journeyDateLabel } from "@/lib/date-labels";
 import { ensureFirebaseClients } from "@/lib/firebase";
@@ -560,10 +559,6 @@ export default function DriverDashboardPage() {
         startOriginLabel: usingGpsOrigin ? gpsOriginLabel : workingBranch,
         certifiedVehicle,
       });
-      trackGa4Event("driver_journey_start", {
-        journey_type: "Delivery",
-        home_branch: workingBranch,
-      });
       setVehicleRegistration("");
     } catch (err) {
       setFormError(err instanceof Error ? err.message : "Couldn't start job right now.");
@@ -626,9 +621,6 @@ export default function DriverDashboardPage() {
     setBusy(true);
     try {
       await endJourney(active.id, undefined, { cancelled: true });
-      trackGa4Event("driver_journey_cancel_route", {
-        home_branch: active.homeBranch,
-      });
     } catch (err) {
       setFormError(err instanceof Error ? err.message : "Could not cancel route.");
     } finally {

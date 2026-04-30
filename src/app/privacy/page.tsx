@@ -1,11 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { PrivacyCookieActions } from "@/components/privacy-cookie-actions";
 
 export const metadata: Metadata = {
-  title: "Privacy & cookies",
-  description:
-    "How RunnerSheet uses analytics cookies and your choices.",
+  title: "Privacy",
+  description: "RunnerSheet — privacy summary for in-house use.",
 };
 
 export default function PrivacyPage() {
@@ -20,40 +18,19 @@ export default function PrivacyPage() {
         </Link>
       </p>
       <h1 className="text-2xl font-bold tracking-tight text-foreground">
-        Privacy & cookies
+        Privacy
       </h1>
-      <p className="mt-2 text-sm text-muted">
-        RunnerSheet is a small independent tool for drivers and managers.
-      </p>
-
-      <section className="mt-8 space-y-3 text-sm leading-relaxed text-foreground">
-        <h2 className="text-base font-semibold text-foreground">
-          Analytics (optional)
-        </h2>
-        <p className="text-muted">
-          If you choose &quot;Accept analytics&quot;, we load Google Analytics
-          (GA4) to understand aggregate traffic and how features are used (for
-          example journey actions). We don&apos;t use it for ads or selling
-          data.
+      <div className="mt-6 space-y-4 text-sm leading-relaxed text-muted">
+        <p>
+          RunnerSheet is intended for in-house fleet use. Journey and account
+          data are handled according to your organisation&apos;s Firebase and
+          access policies.
         </p>
-        <p className="text-muted">
-          If you choose &quot;Reject&quot;, GA is not loaded and those
-          measurement cookies are not set.
+        <p>
+          This app is independent and not affiliated with or endorsed by Arnold
+          Clark.
         </p>
-      </section>
-
-      <section className="mt-8 rounded-2xl border border-border bg-surface p-5 shadow-card-quiet">
-        <h2 className="text-base font-semibold text-foreground">
-          Change your choice
-        </h2>
-        <p className="mt-2 text-sm text-muted">
-          You can clear your choice and decide again — the cookie banner will
-          come back after reload.
-        </p>
-        <div className="mt-4">
-          <PrivacyCookieActions />
-        </div>
-      </section>
+      </div>
     </div>
   );
 }
