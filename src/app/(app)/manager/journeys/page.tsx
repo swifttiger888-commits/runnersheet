@@ -32,6 +32,7 @@ type AiFilters = {
   vehicleColor?: string;
   dateFrom?: string;
   dateTo?: string;
+  excludeCancelled?: boolean;
 };
 
 type AiIntent = {
@@ -123,45 +124,92 @@ function filterManagerJourneysLocal(
 function buildActiveFilterChips(
   filters: AiFilters,
   localDriverNames: string[],
-): { key: string; label: string }[] {
+): { key: string; label: string; clear: () => AiFilters }[] {
   const chips: { key: string; label: string }[] = [];
+  const out: { key: string; label: string; clear: () => AiFilters }[] = [];
   if (filters.vehicleRegistration?.trim()) {
-    chips.push({ key: "reg", label: `Plate ${filters.vehicleRegistration.trim()}` });
+    out.push({
+      key: "reg",
+      label: `Plate ${filters.vehicleRegistration.trim()}`,
+      clear: () => ({ ...filters, vehicleRegistration: undefined }),
+    });
   }
   if (filters.homeBranch?.trim()) {
-    chips.push({ key: "branch", label: `Branch ${filters.homeBranch.trim()}` });
+    out.push({
+      key: "branch",
+      label: `Branch ${filters.homeBranch.trim()}`,
+      clear: () => ({ ...filters, homeBranch: undefined }),
+    });
   }
   if (filters.status) {
-    chips.push({
+    out.push({
       key: "status",
       label: filters.status === "active" ? "Active only" : "Completed only",
+      clear: () => ({ ...filters, status: undefined }),
     });
   }
   if (filters.journeyType) {
-    chips.push({ key: "type", label: filters.journeyType });
+    out.push({
+      key: "type",
+      label: filters.journeyType,
+      clear: () => ({ ...filters, journeyType: undefined }),
+    });
   }
   if (filters.vehicleMake?.trim()) {
-    chips.push({ key: "make", label: `Make ${filters.vehicleMake.trim()}` });
+    out.push({
+      key: "make",
+      label: `Make ${filters.vehicleMake.trim()}`,
+      clear: () => ({ ...filters, vehicleMake: undefined }),
+    });
   }
   if (filters.vehicleModel?.trim()) {
-    chips.push({ key: "model", label: `Model ${filters.vehicleModel.trim()}` });
+    out.push({
+      key: "model",
+      label: `Model ${filters.vehicleModel.trim()}`,
+      clear: () => ({ ...filters, vehicleModel: undefined }),
+    });
   }
   if (filters.vehicleColor?.trim()) {
-    chips.push({ key: "color", label: `Colour ${filters.vehicleColor.trim()}` });
+    out.push({
+      key: "color",
+      label: `Colour ${filters.vehicleColor.trim()}`,
+      clear: () => ({ ...filters, vehicleColor: undefined }),
+    });
   }
   if (filters.driverId?.trim()) {
-    chips.push({ key: "emp", label: `ID ${filters.driverId.trim()}` });
+    out.push({
+      key: "emp",
+      label: `ID ${filters.driverId.trim()}`,
+      clear: () => ({ ...filters, driverId: undefined }),
+    });
   }
   if (filters.dateFrom?.trim() || filters.dateTo?.trim()) {
     const from = filters.dateFrom?.trim() || "…";
     const to = filters.dateTo?.trim() || "…";
-    chips.push({ key: "date", label: `Dates ${from} to ${to}` });
+    out.push({
+      key: "date",
+      label: `Dates ${from} to ${to}`,
+      clear: () => ({ ...filters, dateFrom: undefined, dateTo: undefined }),
+    });
+  }
+  if (filters.excludeCancelled) {
+    out.push({
+      key: "exc-cancel",
+      label: "Exclude cancelled",
+      clear: () => ({ ...filters, excludeCancelled: undefined }),
+    });
   }
   for (const name of localDriverNames) {
     const n = name.trim();
-    if (n) chips.push({ key: `drv-${n}`, label: `Driver contains “${n}” (local)` });
+    if (n) {
+      out.push({
+        key: `drv-${n}`,
+        label: `Driver contains “${n}” (local)`,
+        clear: () => ({ ...filters }),
+      });
+    }
   }
-  return chips;
+  return out;
 }
 
 function isoDateOnly(input: Date): string {
@@ -214,6 +262,31 @@ function parseRelativeDateRange(text: string): { dateFrom?: string; dateTo?: str
     };
   }
   return {};
+}
+
+function isFollowUpQuery(text: string): boolean {
+  const t = text.trim().toLowerCase();
+  if (!t) return false;
+  return /^(now|only|just|and|also|plus|then|exclude|without|remove|filter)\b/.test(t);
+}
+
+function parseFollowUpFlags(text: string): Partial<AiFilters> {
+  const t = text.trim().toLowerCase();
+  const out: Partial<AiFilters> = {};
+  if (/(exclude|without|no)\s+cancelled/.test(t)) out.excludeCancelled = true;
+  if (/(include|with)\s+cancelled/.test(t)) out.excludeCancelled = false;
+  return out;
+}
+
+function mergeFilters(
+  previous: AiFilters | null,
+  next: AiFilters,
+  text: string,
+): AiFilters {
+  const followUp = isFollowUpQuery(text);
+  const base = followUp && previous ? previous : {};
+  const merged: AiFilters = { ...base, ...next };
+  return { ...merged, ...parseFollowUpFlags(text) };
 }
 
 export default function ManagerAllJourneysPage() {
@@ -374,6 +447,9 @@ export default function ManagerAllJourneysPage() {
         (r.certifiedVehicleColor ?? "").toLowerCase().includes(col),
       );
     }
+    if (filters.excludeCancelled) {
+      rows = rows.filter((r) => !r.wasCancelled);
+    }
 
     setAiRows(rows);
     const regs = Array.from(new Set(rows.map((r) => r.vehicleRegistration))).filter(
@@ -422,11 +498,12 @@ export default function ManagerAllJourneysPage() {
             return;
           }
           const dateHints = parseRelativeDateRange(text);
-          const mergedFilters: AiFilters = {
+          const mergedBase: AiFilters = {
             ...data.intent.filters,
             dateFrom: data.intent.filters.dateFrom ?? dateHints.dateFrom,
             dateTo: data.intent.filters.dateTo ?? dateHints.dateTo,
           };
+          const mergedFilters = mergeFilters(activeFilterMeta?.filters ?? null, mergedBase, text);
           const mergedIntent: AiIntent = { ...data.intent, filters: mergedFilters };
           setAiIntent(mergedIntent);
           setActiveFilterMeta({
@@ -454,7 +531,14 @@ export default function ManagerAllJourneysPage() {
       })();
     }, 450);
     return () => window.clearTimeout(timer);
-  }, [q, usesFirebaseAuth, localFiltered, redactSensitiveTerms, runFirestoreMagicSearch]);
+  }, [
+    q,
+    usesFirebaseAuth,
+    localFiltered,
+    redactSensitiveTerms,
+    runFirestoreMagicSearch,
+    activeFilterMeta,
+  ]);
 
   const filtered = aiRows ?? localFiltered;
   const magicActive = q.trim().length >= 3;
@@ -611,11 +695,46 @@ export default function ManagerAllJourneysPage() {
                 </p>
                 <ul className="flex flex-wrap gap-1.5" aria-label="Active search filters">
                   {filterChips.map((c) => (
-                    <li
-                      key={c.key}
-                      className="rounded-full border border-border bg-surface px-2.5 py-1 text-[11px] font-medium text-foreground"
-                    >
-                      {c.label}
+                    <li key={c.key}>
+                      <button
+                        type="button"
+                        className="rounded-full border border-border bg-surface px-2.5 py-1 text-[11px] font-medium text-foreground transition-colors hover:bg-muted-bg/50"
+                        onClick={() => {
+                          const nextFilters = c.clear();
+                          setActiveFilterMeta((prev) =>
+                            prev
+                              ? {
+                                  ...prev,
+                                  filters: nextFilters,
+                                }
+                              : prev,
+                          );
+                          const nextRows = journeys.filter((r) => {
+                            if (nextFilters.vehicleRegistration && r.vehicleRegistration !== nextFilters.vehicleRegistration) return false;
+                            if (nextFilters.driverId && r.driverId !== nextFilters.driverId) return false;
+                            if (nextFilters.status && r.status !== nextFilters.status) return false;
+                            if (nextFilters.journeyType && r.journeyType !== nextFilters.journeyType) return false;
+                            if (nextFilters.homeBranch && !r.homeBranch.toLowerCase().includes(nextFilters.homeBranch.toLowerCase())) return false;
+                            if (nextFilters.vehicleMake && !(r.certifiedVehicleMake ?? "").toLowerCase().includes(nextFilters.vehicleMake.toLowerCase())) return false;
+                            if (nextFilters.vehicleModel && !(r.certifiedVehicleModel ?? "").toLowerCase().includes(nextFilters.vehicleModel.toLowerCase())) return false;
+                            if (nextFilters.vehicleColor && !(r.certifiedVehicleColor ?? "").toLowerCase().includes(nextFilters.vehicleColor.toLowerCase())) return false;
+                            if (nextFilters.excludeCancelled && r.wasCancelled) return false;
+                            if (nextFilters.dateFrom) {
+                              const from = new Date(`${nextFilters.dateFrom}T00:00:00`);
+                              if (r.startTime < from) return false;
+                            }
+                            if (nextFilters.dateTo) {
+                              const to = new Date(`${nextFilters.dateTo}T23:59:59.999`);
+                              if (r.startTime > to) return false;
+                            }
+                            return true;
+                          });
+                          setAiRows(nextRows);
+                        }}
+                        aria-label={`Remove filter ${c.label}`}
+                      >
+                        {c.label} <span className="ml-1 text-muted">x</span>
+                      </button>
                     </li>
                   ))}
                 </ul>
@@ -663,11 +782,12 @@ export default function ManagerAllJourneysPage() {
                       return;
                     }
                     const dateHints = parseRelativeDateRange(t);
-                    const mergedFilters: AiFilters = {
+                    const mergedBase: AiFilters = {
                       ...data.intent.filters,
                       dateFrom: data.intent.filters.dateFrom ?? dateHints.dateFrom,
                       dateTo: data.intent.filters.dateTo ?? dateHints.dateTo,
                     };
+                    const mergedFilters = mergeFilters(activeFilterMeta?.filters ?? null, mergedBase, t);
                     const mergedIntent: AiIntent = { ...data.intent, filters: mergedFilters };
                     setAiIntent(mergedIntent);
                     setActiveFilterMeta({
