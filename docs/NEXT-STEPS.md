@@ -13,6 +13,7 @@ Use this after deploys or when planning a sprint. Check items off as you go.
 
 - [ ] Run Lighthouse or PageSpeed Insights on `/` and `/login` (mobile + desktop).
 - [ ] Fix any regressions (LCP, CLS, large JS) before adding heavy features.
+- [ ] Keep home/login payload lean; avoid loading manager-heavy logic on marketing routes.
 
 ## 3. Product reliability
 
@@ -32,6 +33,12 @@ Use this after deploys or when planning a sprint. Check items off as you go.
 ## 6. Automation
 
 - [ ] CI runs on PRs (see `.github/workflows/ci.yml`): `npm ci` + `npm run build` (+ lint if you want).
+
+## 7. Review hardening
+
+- [ ] Keep README and system overview up to date (`README.md`, `docs/SYSTEM-OVERVIEW.md`).
+- [ ] Keep trial/security wording consistent across homepage and manager docs.
+- [ ] Re-check workplace allowlist before branch demos (`docs/IT-ALLOWLIST.md`).
 
 ---
 

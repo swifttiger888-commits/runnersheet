@@ -1,57 +1,83 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# RunnerSheet
 
-## Getting Started
+RunnerSheet is a digital runner sheet for branch journey operations.
 
-First, run the development server:
+It provides:
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+- driver journey start/end flow with correction windows and audit trail
+- manager review, approvals, reporting, and search workflows
+- Firebase-backed auth and Firestore data with Cloudflare Workers deployment
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+This repository is currently operated as a trial product. See `docs/SECURITY-AND-TRIAL-SCOPE.md`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Tech stack
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- Next.js 16 (App Router)
+- TypeScript
+- Tailwind CSS v4
+- Firebase Auth + Firestore
+- OpenNext + Cloudflare Workers
 
-## Learn More
+## Core route groups
 
-To learn more about Next.js, take a look at the following resources:
+- Public/marketing: `/`
+- Auth + app: `/login`, `/driver`, `/manager/*`
+- Admin: `/admin/master`
+- API routes: `/api/*` (DVLA, postcodes, voice, manager search)
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+See `docs/SYSTEM-OVERVIEW.md` for architecture and data flow.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Local development
 
-## Deploy on Cloudflare (Workers)
-
-This app uses [OpenNext for Cloudflare](https://opennext.js.org/cloudflare) (`@opennextjs/cloudflare`).
-
-Next.js is pinned to **16.1.x** (not 16.2.x) until OpenNext fixes [Cloudflare Error 1101 / `prefetch-hints.json`](https://github.com/opennextjs/opennextjs-cloudflare/issues/1157) on Workers.
-
-**One-time:** install the [Wrangler CLI](https://developers.cloudflare.com/workers/wrangler/install-and-update/) and run `npx wrangler login`.
-
-**From your machine**
+1. Install dependencies:
 
 ```bash
 npm install
+```
+
+2. Create local env file from `.env.example`:
+
+```bash
+cp .env.example .env.local
+```
+
+3. Start dev server:
+
+```bash
+npm run dev
+```
+
+## Build and quality checks
+
+```bash
+npm run build
+npm run lint
+```
+
+## Deploy (Cloudflare Workers)
+
+This app uses [OpenNext for Cloudflare](https://opennext.js.org/cloudflare) (`@opennextjs/cloudflare`).
+
+```bash
 npm run deploy
 ```
 
-`deploy` runs `opennextjs-cloudflare build` then `opennextjs-cloudflare deploy`. Set the same `NEXT_PUBLIC_*` variables you use in `.env.local` in the Cloudflare dashboard (**Workers & Pages → your worker → Settings → Variables**) for production builds, or rely on a CI secret store—`next build` inlines `NEXT_PUBLIC_*` at build time.
+`deploy` runs `opennextjs-cloudflare build` then `opennextjs-cloudflare deploy`.
 
-**Preview locally (production bundle)**
+CI deploys on pushes to `main` via `.github/workflows/ci.yml`.
 
-```bash
-npm run preview
-```
+## Environment configuration notes
 
-**Custom domain (e.g. runnersheet.win)** attach the domain to the Worker in the Cloudflare dashboard (Workers route or custom domains). Add `runnersheet.win` (and `www` if used) under **Firebase → Authentication → Authorized domains**.
+- `NEXT_PUBLIC_*` values are inlined at build time.
+- Keep production `NEXT_PUBLIC_SITE_URL` correct for canonical metadata/sitemap.
+- Ensure Firebase Auth authorized domains include `runnersheet.win` and `www.runnersheet.win`.
+- For manager AI search, configure DeepSeek server-side key in deployment env.
 
-See also: [Next.js on Cloudflare](https://developers.cloudflare.com/workers/frameworks/framework-guides/nextjs/).
+## Operations docs
+
+- `docs/NEXT-STEPS.md` - sprint/deploy checklist
+- `docs/SYSTEM-OVERVIEW.md` - architecture and flows
+- `docs/SECURITY-AND-TRIAL-SCOPE.md` - trial boundaries and security posture
+- `docs/IT-ALLOWLIST.md` - domains to allow on strict workplace networks
+- `docs/MANAGER-EXECUTIVE-SUMMARY.md` - one-page manager handover
+- `docs/MANAGER-USER-GUIDE.md` - step-by-step manager operating guide
