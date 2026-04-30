@@ -261,20 +261,14 @@ export default function DriverDashboardPage() {
   }, [completed]);
   const [expandedHistoryLabels, setExpandedHistoryLabels] = useState<string[]>([]);
 
+  /** Keep expanded sets valid when journey list changes; default is all collapsed. */
   useEffect(() => {
-    const labels = Array.from(groupedHistory.keys());
-    if (labels.length === 0) {
+    const labels = new Set(groupedHistory.keys());
+    if (labels.size === 0) {
       setExpandedHistoryLabels([]);
       return;
     }
-    const todayLabel = journeyDateLabel(new Date());
-    const defaultLabel = labels.includes(todayLabel) ? todayLabel : labels[0]!;
-    setExpandedHistoryLabels((prev) => {
-      if (prev.length > 0 && prev.some((l) => labels.includes(l))) {
-        return prev.filter((l) => labels.includes(l));
-      }
-      return [defaultLabel];
-    });
+    setExpandedHistoryLabels((prev) => prev.filter((l) => labels.has(l)));
   }, [groupedHistory]);
 
   const openCorrectionEditor = useCallback((journey: JourneyRecord) => {
@@ -1005,16 +999,16 @@ export default function DriverDashboardPage() {
       ) : null}
 
       {completed.length > 0 ? (
-        <div className="space-y-4">
-          <h2 className="flex items-center gap-2 text-lg font-bold text-foreground">
-            <History className="h-5 w-5 text-primary" aria-hidden />
+        <div className="space-y-2">
+          <h2 className="flex items-center gap-2 text-base font-semibold tracking-tight text-foreground">
+            <History className="h-4 w-4 text-primary" aria-hidden />
             History
           </h2>
           {Array.from(groupedHistory.entries()).map(([label, rows]) => (
             <div key={label}>
               <button
                 type="button"
-                className="mb-2 inline-flex w-full items-center justify-between rounded-xl border border-border/70 bg-surface/50 px-3 py-2 text-left text-xs font-bold uppercase tracking-wide text-muted transition-colors hover:bg-muted-bg/35"
+                className="mb-1 inline-flex min-h-10 w-full items-center justify-between rounded-lg border border-border/70 bg-surface/50 px-2.5 py-1.5 text-left text-[11px] font-bold uppercase tracking-wide text-muted transition-colors hover:bg-muted-bg/35"
                 onClick={() =>
                   setExpandedHistoryLabels((prev) =>
                     prev.includes(label)
