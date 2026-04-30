@@ -65,7 +65,22 @@ function formatMagicSearchError(
   payload: { intent?: AiIntent; error?: string },
 ): string {
   const detail = payload.error?.trim();
-  if (detail) return detail;
+  if (detail) {
+    const lower = detail.toLowerCase();
+    if (lower.includes("missing bearer token") || lower.includes("invalid auth token")) {
+      return "Your session expired. Please sign in again.";
+    }
+    if (lower.includes("provider authentication failed")) {
+      return "Magic Search is misconfigured on the server. Please contact an admin.";
+    }
+    if (lower.includes("internal server error")) {
+      return "Magic Search is temporarily unavailable. Please try again shortly.";
+    }
+    return detail;
+  }
+  if (res.status >= 500) {
+    return "Magic Search is temporarily unavailable. Please try again shortly.";
+  }
   const statusLabel = res.status ? `HTTP ${res.status}` : "HTTP error";
   return `Magic Search failed (${statusLabel}).`;
 }

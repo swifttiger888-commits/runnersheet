@@ -163,19 +163,19 @@ export async function POST(req: Request) {
 
     const payload = (await deepSeekRes.json().catch(() => ({}))) as DeepSeekChatResponse;
     if (!deepSeekRes.ok) {
-      const deepSeekMessage = payload.error?.message?.trim();
       const deepSeekCode =
         typeof payload.error?.code === "string" || typeof payload.error?.code === "number"
           ? String(payload.error.code)
           : null;
-      const suffix = deepSeekCode ? ` (code: ${deepSeekCode})` : "";
-      const userFacing = deepSeekMessage
-        ? `DeepSeek request failed: ${deepSeekMessage}${suffix}`
-        : `DeepSeek request failed with status ${deepSeekRes.status}.`;
+      const userFacing =
+        deepSeekRes.status === 401 || deepSeekRes.status === 403
+          ? "Magic Search provider authentication failed."
+          : "Magic Search provider is temporarily unavailable.";
       console.error("[search/ai] deepseek non-2xx", {
         status: deepSeekRes.status,
         model,
         endpoint,
+        deepSeekCode,
         deepSeekError: payload.error ?? null,
       });
       return NextResponse.json(
