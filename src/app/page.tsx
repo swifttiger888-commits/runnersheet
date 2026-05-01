@@ -168,8 +168,12 @@ export default function Home() {
               Sign in to RunnerSheet
             </h2>
             <p className="mt-1.5 text-sm text-muted">
-              Use your work account — your role (driver or manager) comes from
-              your RunnerSheet profile after authentication.
+              Sign in with an account you are happy to use. Your role (driver or
+              manager) comes from your RunnerSheet profile after you authenticate.
+              RunnerSheet is independent and is not affiliated with Arnold Clark
+              or your employer’s official systems — you do not need a “work”
+              account. If you use a work email or device, that is your choice, but
+              we do not recommend it.
             </p>
             <div className="flex flex-wrap gap-2 pt-2 text-xs text-muted">
               <span className="rounded-full border border-border/80 bg-background/60 px-2.5 py-1">
