@@ -1,4 +1,4 @@
-const SW_VERSION = "runnersheet-sw-v2";
+const SW_VERSION = "runnersheet-sw-v3";
 const APP_SHELL_CACHE = `${SW_VERSION}-app-shell`;
 const API_CACHE = `${SW_VERSION}-api`;
 const STATIC_CACHE = `${SW_VERSION}-static`;
@@ -7,6 +7,8 @@ const APP_SHELL_URLS = [
   "/",
   "/offline.html",
   "/manifest.webmanifest",
+  "/favicon.ico",
+  "/favicon.svg",
   "/apple-touch-icon.png",
   "/icons/icon-192.png",
   "/icons/icon-512.png",
