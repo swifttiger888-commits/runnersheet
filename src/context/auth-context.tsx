@@ -9,6 +9,7 @@ import {
   useState,
 } from "react";
 import type { User } from "firebase/auth";
+import { DEMO_PROFILE, validateDemoCredentials } from "@/config/demo-auth";
 import { ensureFirebaseClients } from "@/lib/firebase";
 import {
   getAuthProviderMode,
@@ -21,6 +22,8 @@ import { parseFirestoreUser } from "@/lib/parse-firestore-user";
 import { usePwaInstallTracking } from "@/hooks/use-pwa-install-tracking";
 import { getSiteUrl } from "@/lib/site";
 import type { UserAccessStatus, UserProfile, UserRole } from "@/types/user";
+
+const DEV_KEY = "runnersheet_dev";
 
 /** Extensible OAuth entry points (Firebase console must enable each provider). */
 export type OAuthProviderId = "google";
@@ -88,7 +91,7 @@ type AuthContextValue = {
   signOutUser: () => Promise<void>;
   devSignIn: (role: UserRole) => Promise<void>;
   clearError: () => void;
-  /** Demo shortcuts are disabled in production auth mode. */
+  /** Quick-entry role buttons: local auth only; with Firebase, development builds only. */
   showDemoShortcuts: boolean;
   /** Profile from Firestore users/{uid} or demo profile */
   profile: UserProfile | null;
@@ -101,6 +104,25 @@ type AuthContextValue = {
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
+
+function readDevRole(): UserRole | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = sessionStorage.getItem(DEV_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as { role?: string };
+    if (parsed.role === "driver" || parsed.role === "manager") {
+      return parsed.role;
+    }
+  } catch {
+    /* ignore */
+  }
+  return null;
+}
+
+function persistDevRole(role: UserRole) {
+  sessionStorage.setItem(DEV_KEY, JSON.stringify({ role }));
+}
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [ready, setReady] = useState(false);
@@ -115,7 +137,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const provider = getAuthProviderMode();
   const firebaseConfigured = isFirebaseConfigured();
   const usesFirebaseAuth = shouldUseFirebaseAuth();
-  const showDemoShortcuts = false;
+  const showDemoShortcuts =
+    provider === "demo" ||
+    (provider === "firebase" && process.env.NODE_ENV === "development");
 
   useEffect(() => {
     let cancelled = false;
@@ -126,8 +150,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (cancelled) return;
         setUser(null);
         setAccessStatus(null);
-        setRole(null);
-        setProfile(null);
+        const dr = readDevRole();
+        setRole(dr);
+        setProfile(dr ? DEMO_PROFILE[dr] : null);
         setReady(true);
       });
       return () => {
@@ -143,8 +168,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           if (cancelled) return;
           setUser(null);
           setAccessStatus(null);
-          setRole(null);
-          setProfile(null);
+          const dr = readDevRole();
+          setRole(dr);
+          setProfile(dr ? DEMO_PROFILE[dr] : null);
           setReady(true);
         });
         return;
@@ -162,6 +188,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (cancelled) return;
         setUser(u);
         if (u) {
+          sessionStorage.removeItem(DEV_KEY);
           // Avoid showing stale UI (ready=true, accessStatus=null) while Firestore loads.
           if (!cancelled) setReady(false);
 
@@ -221,8 +248,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           }
         } else {
           setAccessStatus(null);
-          setRole(null);
-          setProfile(null);
+          const dr = readDevRole();
+          setRole(dr);
+          setProfile(dr ? DEMO_PROFILE[dr] : null);
         }
         if (!cancelled) setReady(true);
       });
@@ -236,6 +264,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signIn = useCallback(async (email: string, password: string) => {
     setError(null);
+    const mode = getAuthProviderMode();
+
+    if (mode === "demo") {
+      const r = validateDemoCredentials(email, password);
+      if (!r) {
+        setError("Invalid email or password.");
+        return;
+      }
+      persistDevRole(r);
+      setUser(null);
+      setRole(r);
+      setProfile(DEMO_PROFILE[r]);
+      return;
+    }
 
     if (!isFirebaseConfigured()) {
       setError(
@@ -245,9 +287,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     if (!isCompanyEmailAllowed(email.trim())) {
-      setError(
-        "This email address can’t be used to sign in here. Try the address registered for your account.",
-      );
+      if (validateDemoCredentials(email.trim(), password)) {
+        setError(
+          "Those sample sign-in details only work when the app is set up for local use. Sign in with your RunnerSheet account instead.",
+        );
+      } else {
+        setError(
+          "This email address can’t be used to sign in here. Try the address registered for your account.",
+        );
+      }
       return;
     }
 
@@ -260,7 +308,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const { signInWithEmailAndPassword } = await import("firebase/auth");
       await signInWithEmailAndPassword(clients.auth, email.trim(), password);
     } catch (e) {
-      setError(mapFirebaseAuthError(e));
+      if (validateDemoCredentials(email.trim(), password)) {
+        setError(
+          "Sign in with your Firebase account. If you need help, ask your administrator to add your profile.",
+        );
+      } else {
+        setError(mapFirebaseAuthError(e));
+      }
     }
   }, []);
 
@@ -451,6 +505,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 
   const signOutUser = useCallback(async () => {
+    sessionStorage.removeItem(DEV_KEY);
     setUser(null);
     setRole(null);
     setProfile(null);
@@ -468,8 +523,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const devSignIn = useCallback(
     async (r: UserRole) => {
-      void r;
-      setError("Demo shortcuts are disabled. Sign in with your RunnerSheet account.");
+      const clients = await ensureFirebaseClients();
+      if (clients) {
+        try {
+          const { signOut } = await import("firebase/auth");
+          await signOut(clients.auth);
+        } catch {
+          /* ignore */
+        }
+      }
+      persistDevRole(r);
+      setUser(null);
+      setRole(r);
+      setProfile(DEMO_PROFILE[r]);
+      setAccessStatus(null);
     },
     [],
   );
